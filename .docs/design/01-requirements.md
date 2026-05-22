@@ -182,6 +182,7 @@
 | 항목 | 기준 |
 |---|---|
 | 인증 방식 | 헤더 기반 식별. 인증·인가 구현 제외 |
+| 민감정보 보호 | 자격 헤더(`X-Loopers-LoginId`/`X-Loopers-LoginPw`/`X-Loopers-Ldap`)는 access·error 로그·APM/트레이스 span에 평문 기록 금지. 공통 필터(또는 게이트웨이)에서 제거 또는 마스킹(`****`) — 인증 성공·실패·예외 경로 모두 적용 |
 | API prefix | 대고객 `/api/v1` (`LoginId`/`LoginPw`). 어드민 `/api-admin/v1` (`Ldap`) |
 | 페이지네이션 | `page`/`size` 기반. 기본 `page=0`, `size=20` |
 | Soft delete | `BaseEntity.delete()` / `restore()` 사용. 멱등 |
