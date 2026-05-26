@@ -52,7 +52,7 @@ public class ProductRepositoryImpl implements ProductRepository {
 
     @Override
     public long countByBrandId(Long brandId) {
-        return productJpaRepository.countByBrand_IdAndDeletedAtIsNull(brandId);
+        return productJpaRepository.countByBrandIdAndDeletedAtIsNull(brandId);
     }
 
     /**

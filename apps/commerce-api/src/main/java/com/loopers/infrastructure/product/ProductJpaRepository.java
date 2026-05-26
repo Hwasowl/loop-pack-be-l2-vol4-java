@@ -14,19 +14,17 @@ import java.util.Optional;
 public interface ProductJpaRepository extends JpaRepository<ProductModel, Long> {
     Optional<ProductModel> findByIdAndDeletedAtIsNull(Long id);
     List<ProductModel> findAllByIdInAndDeletedAtIsNull(Collection<Long> ids);
-    long countByBrand_IdAndDeletedAtIsNull(Long brandId);
+    long countByBrandIdAndDeletedAtIsNull(Long brandId);
 
     @Query(
-        value = "SELECT p FROM ProductModel p JOIN FETCH p.brand WHERE p.deletedAt IS NULL",
+        value = "SELECT p FROM ProductModel p WHERE p.deletedAt IS NULL",
         countQuery = "SELECT COUNT(p) FROM ProductModel p WHERE p.deletedAt IS NULL"
     )
     Page<ProductModel> searchAll(Pageable pageable);
 
     @Query(
-        value = "SELECT p FROM ProductModel p JOIN FETCH p.brand "
-            + "WHERE p.deletedAt IS NULL AND p.brand.id = :brandId",
-        countQuery = "SELECT COUNT(p) FROM ProductModel p "
-            + "WHERE p.deletedAt IS NULL AND p.brand.id = :brandId"
+        value = "SELECT p FROM ProductModel p WHERE p.deletedAt IS NULL AND p.brandId = :brandId",
+        countQuery = "SELECT COUNT(p) FROM ProductModel p WHERE p.deletedAt IS NULL AND p.brandId = :brandId"
     )
     Page<ProductModel> searchByBrandId(@Param("brandId") Long brandId, Pageable pageable);
 }

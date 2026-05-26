@@ -49,7 +49,7 @@ class LikeFacadeIntegrationTest {
     void setUp() {
         userId = 1L;
         BrandModel brand = brandRepository.save(new BrandModel("Loopers", "감성"));
-        ProductModel product = productRepository.save(new ProductModel(brand, "후드", "포근함", 49_000L));
+        ProductModel product = productRepository.save(new ProductModel(brand.getId(),"후드", "포근함", 49_000L));
         productId = product.getId();
     }
 

@@ -1,6 +1,5 @@
 package com.loopers.domain.product;
 
-import com.loopers.domain.brand.BrandModel;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.DisplayName;
@@ -34,7 +33,7 @@ class ProductServiceTest {
     private ProductService productService;
 
     private ProductModel sampleProduct() {
-        return new ProductModel(new BrandModel("Loopers", "감성"), "후드", "포근함", 49_000L);
+        return new ProductModel(100L, "후드", "포근함", 49_000L);
     }
 
     @DisplayName("ID로 단건 조회 시")

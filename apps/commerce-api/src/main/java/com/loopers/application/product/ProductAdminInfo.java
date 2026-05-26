@@ -1,5 +1,6 @@
 package com.loopers.application.product;
 
+import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.product.ProductDetail;
 import com.loopers.domain.product.ProductModel;
 
@@ -17,14 +18,14 @@ public record ProductAdminInfo(
     ZonedDateTime createdAt,
     ZonedDateTime updatedAt
 ) {
-    public static ProductAdminInfo from(ProductModel product, int stockQuantity) {
+    public static ProductAdminInfo from(ProductModel product, BrandModel brand, int stockQuantity) {
         return new ProductAdminInfo(
             product.getId(),
             product.getName(),
             product.getDescription(),
             product.getPrice(),
-            product.getBrand().getId(),
-            product.getBrand().getName(),
+            product.getBrandId(),
+            brand != null ? brand.getName() : null,
             product.getLikeCount(),
             stockQuantity,
             product.getCreatedAt(),

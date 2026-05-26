@@ -69,8 +69,8 @@ class OrderFacadeIntegrationTest {
         userId = user.getId();
 
         BrandModel brand = brandRepository.save(new BrandModel("Loopers", "감성"));
-        ProductModel p1 = productRepository.save(new ProductModel(brand, "후드", "포근함", 50_000L));
-        ProductModel p2 = productRepository.save(new ProductModel(brand, "맨투맨", "심플", 30_000L));
+        ProductModel p1 = productRepository.save(new ProductModel(brand.getId(),"후드", "포근함", 50_000L));
+        ProductModel p2 = productRepository.save(new ProductModel(brand.getId(),"맨투맨", "심플", 30_000L));
         product1Id = p1.getId();
         product2Id = p2.getId();
         stockRepository.save(new StockModel(product1Id, 10));
