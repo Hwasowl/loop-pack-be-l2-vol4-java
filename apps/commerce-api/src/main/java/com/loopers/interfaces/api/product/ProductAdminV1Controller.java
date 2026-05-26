@@ -2,13 +2,18 @@ package com.loopers.interfaces.api.product;
 
 import com.loopers.application.product.ProductAdminFacade;
 import com.loopers.application.product.ProductAdminInfo;
+import com.loopers.domain.product.SortOption;
 import com.loopers.interfaces.api.ApiResponse;
+import com.loopers.interfaces.api.PageSize;
 import com.loopers.interfaces.api.auth.AdminUser;
 import com.loopers.interfaces.api.auth.LoginAdmin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/api-admin/v1/products")
+@Validated
 public class ProductAdminV1Controller {
 
     private final ProductAdminFacade productAdminFacade;
@@ -26,11 +32,12 @@ public class ProductAdminV1Controller {
     public ApiResponse<ProductAdminV1Dto.PageResponse> search(
         @LoginAdmin AdminUser admin,
         @RequestParam(required = false) Long brandId,
-        @RequestParam(required = false, defaultValue = "0") int page,
-        @RequestParam(required = false, defaultValue = "20") int size
+        @RequestParam(required = false, defaultValue = "latest") String sort,
+        @RequestParam(required = false, defaultValue = "0") @Min(0) int page,
+        @RequestParam(required = false, defaultValue = "20") @Min(1) @Max(PageSize.MAX) int size
     ) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<ProductAdminInfo> result = productAdminFacade.search(brandId, pageable);
+        Page<ProductAdminInfo> result = productAdminFacade.search(brandId, SortOption.from(sort), pageable);
         return ApiResponse.success(ProductAdminV1Dto.PageResponse.from(result));
     }
 

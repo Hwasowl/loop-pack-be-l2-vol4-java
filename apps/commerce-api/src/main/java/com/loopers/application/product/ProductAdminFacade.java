@@ -29,8 +29,8 @@ public class ProductAdminFacade {
         return ProductAdminInfo.from(detail, stock.getQuantity());
     }
 
-    public Page<ProductAdminInfo> search(Long brandId, Pageable pageable) {
-        Page<ProductModel> products = productService.search(brandId, SortOption.LATEST, pageable);
+    public Page<ProductAdminInfo> search(Long brandId, SortOption sort, Pageable pageable) {
+        Page<ProductModel> products = productService.search(brandId, sort, pageable);
         List<Long> productIds = products.getContent().stream().map(ProductModel::getId).toList();
         Map<Long, Integer> quantities = stockService.getQuantities(productIds);
         return products.map(product ->
