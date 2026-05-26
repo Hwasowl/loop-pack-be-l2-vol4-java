@@ -5,7 +5,9 @@ import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.product.SortOption;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.Collection;
@@ -17,7 +19,6 @@ import java.util.Optional;
 public class ProductRepositoryImpl implements ProductRepository {
 
     private final ProductJpaRepository productJpaRepository;
-    private final ProductQueryDslRepository productQueryDslRepository;
 
     @Override
     public ProductModel save(ProductModel product) {
@@ -39,11 +40,30 @@ public class ProductRepositoryImpl implements ProductRepository {
 
     @Override
     public Page<ProductModel> search(Long brandId, SortOption sort, Pageable pageable) {
-        return productQueryDslRepository.search(brandId, sort, pageable);
+        Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(), pageable.getPageSize(), toSort(sort)
+        );
+
+        // 옵티마이저가 인덱스를 명확히 타도록 쿼리를 분기한다. nullable 조건이 늘어나면 메서드가 2^N으로 증가하므로, QueryDSL 적용을 고려한다.
+        return brandId == null
+            ? productJpaRepository.searchAll(sortedPageable)
+            : productJpaRepository.searchByBrandId(brandId, sortedPageable);
     }
 
     @Override
     public long countByBrandId(Long brandId) {
         return productJpaRepository.countByBrand_IdAndDeletedAtIsNull(brandId);
+    }
+
+    /**
+     * SortOption(도메인) → Spring Data Sort(인프라) 매핑.
+     * id desc tiebreak으로 페이지 사이 중복/누락을 방지한다.
+     */
+    private Sort toSort(SortOption option) {
+        return switch (option) {
+            case LATEST -> Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
+            case PRICE_ASC -> Sort.by(Sort.Order.asc("price"), Sort.Order.desc("id"));
+            case LIKES_DESC -> Sort.by(Sort.Order.desc("likeCount"), Sort.Order.desc("id"));
+        };
     }
 }

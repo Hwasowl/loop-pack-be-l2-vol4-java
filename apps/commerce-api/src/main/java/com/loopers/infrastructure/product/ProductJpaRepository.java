@@ -1,7 +1,11 @@
 package com.loopers.infrastructure.product;
 
 import com.loopers.domain.product.ProductModel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -11,4 +15,18 @@ public interface ProductJpaRepository extends JpaRepository<ProductModel, Long> 
     Optional<ProductModel> findByIdAndDeletedAtIsNull(Long id);
     List<ProductModel> findAllByIdInAndDeletedAtIsNull(Collection<Long> ids);
     long countByBrand_IdAndDeletedAtIsNull(Long brandId);
+
+    @Query(
+        value = "SELECT p FROM ProductModel p JOIN FETCH p.brand WHERE p.deletedAt IS NULL",
+        countQuery = "SELECT COUNT(p) FROM ProductModel p WHERE p.deletedAt IS NULL"
+    )
+    Page<ProductModel> searchAll(Pageable pageable);
+
+    @Query(
+        value = "SELECT p FROM ProductModel p JOIN FETCH p.brand "
+            + "WHERE p.deletedAt IS NULL AND p.brand.id = :brandId",
+        countQuery = "SELECT COUNT(p) FROM ProductModel p "
+            + "WHERE p.deletedAt IS NULL AND p.brand.id = :brandId"
+    )
+    Page<ProductModel> searchByBrandId(@Param("brandId") Long brandId, Pageable pageable);
 }
