@@ -13,17 +13,20 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
 
     @Transactional
-    public OrderModel placeInitial(Long userId, List<OrderItem> items) {
-        return orderRepository.save(new OrderModel(userId, items));
+    public OrderModel placeInitial(Long userId, Long totalAmount, List<OrderItem> items) {
+        OrderModel order = orderRepository.save(new OrderModel(userId, totalAmount));
+        items.forEach(item -> item.assignOrderId(order.getId()));
+        orderItemRepository.saveAll(items);
+        return order;
     }
 
     @Transactional
     public OrderModel markSucceeded(Long orderId) {
         OrderModel order = loadOrThrow(orderId);
         order.markSucceeded();
-        order.getItems().size();   // 호출자가 Tx 밖에서 OrderInfo로 변환할 수 있도록 LAZY 컬렉션 초기화
         return order;
     }
 
@@ -35,6 +38,11 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderModel getById(Long id) {
         return loadOrThrow(id);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderItem> getItemsByOrderId(Long orderId) {
+        return orderItemRepository.findAllByOrderId(orderId);
     }
 
     private OrderModel loadOrThrow(Long id) {

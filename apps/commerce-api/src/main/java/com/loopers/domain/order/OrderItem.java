@@ -4,12 +4,9 @@ import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -25,9 +22,8 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "order_id", nullable = false)
-    private OrderModel order;
+    @Column(name = "order_id")
+    private Long orderId;
 
     @Column(name = "product_id", nullable = false)
     private Long productId;
@@ -65,8 +61,11 @@ public class OrderItem {
         this.quantity = quantity;
     }
 
-    void assignOrder(OrderModel order) {
-        this.order = order;
+    public void assignOrderId(Long orderId) {
+        if (orderId == null) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "orderId는 비어있을 수 없습니다.");
+        }
+        this.orderId = orderId;
     }
 
     public Long subtotal() {

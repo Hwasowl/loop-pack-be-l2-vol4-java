@@ -17,6 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -25,36 +28,53 @@ class OrderServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    @Mock
+    private OrderItemRepository orderItemRepository;
+
     @InjectMocks
     private OrderService orderService;
 
-    @DisplayName("placeInitial 시 Repository가 저장한 주문(CREATED)을 그대로 반환한다")
-    @Test
-    void placeInitial_returnsSavedOrder() {
-        List<OrderItem> items = List.of(new OrderItem(1L, "후드", 10_000L, 2));
-        when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+    @DisplayName("placeInitial 시")
+    @Nested
+    class PlaceInitial {
 
-        OrderModel result = orderService.placeInitial(1L, items);
+        @DisplayName("Order 저장 후 items에 orderId를 주입하고 일괄 저장한다 (CREATED 반환)")
+        @Test
+        void savesOrderAndAssignsOrderIdToItems() {
+            OrderItem item1 = new OrderItem(1L, "후드", 10_000L, 2);
+            OrderItem item2 = new OrderItem(2L, "맨투맨", 15_000L, 1);
+            when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> {
+                OrderModel arg = inv.getArgument(0);
+                // 영속화 후 ID가 부여된 것처럼 — Mock으로는 동일 인스턴스 반환만 가능
+                return arg;
+            });
 
-        assertAll(
-            () -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED),
-            () -> assertThat(result.getTotalAmount()).isEqualTo(20_000L)
-        );
+            OrderModel result = orderService.placeInitial(1L, 35_000L, List.of(item1, item2));
+
+            assertAll(
+                () -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED),
+                () -> assertThat(result.getTotalAmount()).isEqualTo(35_000L)
+            );
+            verify(orderItemRepository, times(1)).saveAll(anyCollection());
+        }
     }
 
     @DisplayName("markSucceeded 시")
     @Nested
     class MarkSucceeded {
 
-        @DisplayName("존재하는 CREATED 주문이면 status를 SUCCEEDED로 전이한다")
+        @DisplayName("존재하는 CREATED 주문이면 status를 SUCCEEDED로 전이하고 OrderModel을 반환한다")
         @Test
         void transitionsToSucceeded() {
-            OrderModel order = new OrderModel(1L, List.of(new OrderItem(1L, "후드", 10_000L, 1)));
+            OrderModel order = new OrderModel(1L, 10_000L);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.markSucceeded(1L);
+            OrderModel result = orderService.markSucceeded(1L);
 
-            assertThat(order.getStatus()).isEqualTo(OrderStatus.SUCCEEDED);
+            assertAll(
+                () -> assertThat(result).isSameAs(order),
+                () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.SUCCEEDED)
+            );
         }
 
         @DisplayName("존재하지 않으면 NOT_FOUND 예외가 발생한다")
@@ -75,7 +95,7 @@ class OrderServiceTest {
         @DisplayName("존재하는 CREATED 주문이면 status를 FAILED로 전이하고 사유를 기록한다")
         @Test
         void transitionsToFailedWithReason() {
-            OrderModel order = new OrderModel(1L, List.of(new OrderItem(1L, "후드", 10_000L, 1)));
+            OrderModel order = new OrderModel(1L, 10_000L);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             orderService.markFailed(1L, "재고가 부족합니다.");
@@ -104,7 +124,7 @@ class OrderServiceTest {
         @DisplayName("존재하는 주문이면 그대로 반환한다")
         @Test
         void returnsOrder_whenIdExists() {
-            OrderModel order = new OrderModel(1L, List.of(new OrderItem(1L, "후드", 10_000L, 1)));
+            OrderModel order = new OrderModel(1L, 10_000L);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             assertThat(orderService.getById(1L)).isSameAs(order);

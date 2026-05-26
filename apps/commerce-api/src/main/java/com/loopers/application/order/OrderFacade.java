@@ -37,13 +37,14 @@ public class OrderFacade {
                 return new OrderItem(product.getId(), product.getName(), product.getPrice(), line.quantity());
             })
             .toList();
+        long totalAmount = items.stream().mapToLong(OrderItem::subtotal).sum();
 
-        OrderModel created = orderService.placeInitial(userId, items);
+        OrderModel created = orderService.placeInitial(userId, totalAmount, items);
 
         try {
             stockService.decreaseAll(aggregateQuantities(lines));
             OrderModel succeeded = orderService.markSucceeded(created.getId());
-            return OrderInfo.from(succeeded);
+            return OrderInfo.from(succeeded, items);
         } catch (CoreException e) {
             orderService.markFailed(created.getId(),
                 e.getCustomMessage() != null ? e.getCustomMessage() : e.getMessage());

@@ -1,5 +1,6 @@
 package com.loopers.application.order;
 
+import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderStatus;
 
@@ -14,13 +15,13 @@ public record OrderInfo(
     List<OrderItemInfo> items,
     ZonedDateTime createdAt
 ) {
-    public static OrderInfo from(OrderModel order) {
+    public static OrderInfo from(OrderModel order, List<OrderItem> items) {
         return new OrderInfo(
             order.getId(),
             order.getUserId(),
             order.getStatus(),
             order.getTotalAmount(),
-            order.getItems().stream().map(OrderItemInfo::from).toList(),
+            items.stream().map(OrderItemInfo::from).toList(),
             order.getCreatedAt()
         );
     }

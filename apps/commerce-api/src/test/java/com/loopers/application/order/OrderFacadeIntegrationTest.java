@@ -13,6 +13,7 @@ import com.loopers.domain.user.LoginId;
 import com.loopers.domain.user.UserModel;
 import com.loopers.domain.user.UserName;
 import com.loopers.domain.user.UserRepository;
+import com.loopers.infrastructure.order.OrderItemJpaRepository;
 import com.loopers.infrastructure.order.OrderJpaRepository;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -54,6 +55,9 @@ class OrderFacadeIntegrationTest {
     private OrderJpaRepository orderJpaRepository;
 
     @Autowired
+    private OrderItemJpaRepository orderItemJpaRepository;
+
+    @Autowired
     private DatabaseCleanUp databaseCleanUp;
 
     private Long userId;
@@ -69,8 +73,8 @@ class OrderFacadeIntegrationTest {
         userId = user.getId();
 
         BrandModel brand = brandRepository.save(new BrandModel("Loopers", "감성"));
-        ProductModel p1 = productRepository.save(new ProductModel(brand.getId(),"후드", "포근함", 50_000L));
-        ProductModel p2 = productRepository.save(new ProductModel(brand.getId(),"맨투맨", "심플", 30_000L));
+        ProductModel p1 = productRepository.save(new ProductModel(brand.getId(), "후드", "포근함", 50_000L));
+        ProductModel p2 = productRepository.save(new ProductModel(brand.getId(), "맨투맨", "심플", 30_000L));
         product1Id = p1.getId();
         product2Id = p2.getId();
         stockRepository.save(new StockModel(product1Id, 10));
@@ -86,7 +90,7 @@ class OrderFacadeIntegrationTest {
     @Nested
     class PlaceOrder {
 
-        @DisplayName("정상 주문이면 status=SUCCEEDED로 종료되고 재고가 차감된다")
+        @DisplayName("정상 주문이면 status=SUCCEEDED로 종료되고 재고 차감 + items가 orderId로 영속된다")
         @Test
         void persistsOrderAsSucceeded_andDecreasesStock() {
             OrderInfo info = orderFacade.placeOrder(userId, List.of(
@@ -100,13 +104,14 @@ class OrderFacadeIntegrationTest {
                 () -> assertThat(info.items()).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(8),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(4),
-                () -> assertThat(orderJpaRepository.count()).isEqualTo(1)
+                () -> assertThat(orderJpaRepository.count()).isEqualTo(1),
+                () -> assertThat(orderItemJpaRepository.findAllByOrderId(info.id())).hasSize(2)
             );
         }
 
-        @DisplayName("존재하지 않는 유저로 주문하면 NOT_FOUND이고 Order row도 만들어지지 않는다")
+        @DisplayName("존재하지 않는 유저로 주문하면 NOT_FOUND이고 Order row도 OrderItem도 생기지 않는다")
         @Test
-        void throwsNotFound_andNoOrderRow_whenUserDoesNotExist() {
+        void throwsNotFound_andNoRows_whenUserDoesNotExist() {
             CoreException ex = assertThrows(CoreException.class, () ->
                 orderFacade.placeOrder(99_999L, List.of(new OrderLineCommand(product1Id, 1)))
             );
@@ -114,13 +119,14 @@ class OrderFacadeIntegrationTest {
             assertAll(
                 () -> assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND),
                 () -> assertThat(orderJpaRepository.count()).isZero(),
+                () -> assertThat(orderItemJpaRepository.count()).isZero(),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(10)
             );
         }
 
-        @DisplayName("존재하지 않는 상품을 포함하면 NOT_FOUND이고 Order row도 만들어지지 않는다")
+        @DisplayName("존재하지 않는 상품을 포함하면 NOT_FOUND이고 Order row도 OrderItem도 생기지 않는다")
         @Test
-        void throwsNotFound_andNoOrderRow_whenProductDoesNotExist() {
+        void throwsNotFound_andNoRows_whenProductDoesNotExist() {
             CoreException ex = assertThrows(CoreException.class, () ->
                 orderFacade.placeOrder(userId, List.of(
                     new OrderLineCommand(product1Id, 1),
@@ -131,11 +137,12 @@ class OrderFacadeIntegrationTest {
             assertAll(
                 () -> assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND),
                 () -> assertThat(orderJpaRepository.count()).isZero(),
+                () -> assertThat(orderItemJpaRepository.count()).isZero(),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(10)
             );
         }
 
-        @DisplayName("재고가 부족하면 CONFLICT이고 재고는 모두 롤백되지만 Order row는 FAILED로 잔존한다")
+        @DisplayName("재고 부족이면 CONFLICT이고 재고는 롤백되지만 Order는 FAILED + items는 잔존한다")
         @Test
         void throwsConflict_andLeavesFailedOrderRow_whenStockIsInsufficient() {
             CoreException ex = assertThrows(CoreException.class, () ->
@@ -152,6 +159,7 @@ class OrderFacadeIntegrationTest {
             assertAll(
                 () -> assertThat(failed.getStatus()).isEqualTo(OrderStatus.FAILED),
                 () -> assertThat(failed.getFailureReason()).isNotBlank(),
+                () -> assertThat(orderItemJpaRepository.findAllByOrderId(failed.getId())).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(10),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(5)
             );
