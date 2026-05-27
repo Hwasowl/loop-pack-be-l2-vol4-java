@@ -1,7 +1,7 @@
 package com.loopers.application.product;
 
 import com.loopers.domain.brand.BrandModel;
-import com.loopers.domain.brand.BrandRepository;
+import com.loopers.domain.brand.BrandService;
 import com.loopers.domain.product.ProductDetail;
 import com.loopers.domain.product.ProductDetailService;
 import com.loopers.domain.product.ProductModel;
@@ -30,7 +30,7 @@ public class ProductCompositionReader {
     private final ProductService productService;
     private final ProductDetailService productDetailService;
     private final StockService stockService;
-    private final BrandRepository brandRepository;
+    private final BrandService brandService;
 
     public ProductWithDeps getDetail(Long productId) {
         ProductDetail detail = productDetailService.getDetail(productId);
@@ -43,7 +43,7 @@ public class ProductCompositionReader {
         List<Long> productIds = products.getContent().stream().map(ProductModel::getId).toList();
         List<Long> brandIds = products.getContent().stream().map(ProductModel::getBrandId).distinct().toList();
         Map<Long, Integer> quantities = stockService.getQuantities(productIds);
-        Map<Long, BrandModel> brands = brandRepository.findAllByIds(brandIds).stream()
+        Map<Long, BrandModel> brands = brandService.findAllByIds(brandIds).stream()
             .collect(Collectors.toMap(BrandModel::getId, Function.identity()));
         return products.map(p -> new ProductWithDeps(
             p, brands.get(p.getBrandId()), quantities.getOrDefault(p.getId(), 0)
