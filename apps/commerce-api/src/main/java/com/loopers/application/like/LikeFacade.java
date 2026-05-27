@@ -23,6 +23,7 @@ public class LikeFacade {
 
     @Transactional
     public void unlike(Long userId, Long productId) {
+        productService.getById(productId);
         if (likeService.unlike(userId, productId)) {
             productService.decrementLikeCount(productId);
         }
