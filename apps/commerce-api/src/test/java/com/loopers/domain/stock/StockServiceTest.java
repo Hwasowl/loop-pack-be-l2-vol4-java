@@ -38,7 +38,7 @@ class StockServiceTest {
         void decreasesQuantity_whenStockExistsAndSufficient() {
             // given
             StockModel stock = new StockModel(PRODUCT_ID, 10);
-            when(stockRepository.findByProductIdForUpdate(PRODUCT_ID)).thenReturn(Optional.of(stock));
+            when(stockRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(stock));
 
             // when
             stockService.decrease(PRODUCT_ID, 3);
@@ -51,7 +51,7 @@ class StockServiceTest {
         @Test
         void throwsNotFound_whenStockDoesNotExist() {
             // given
-            when(stockRepository.findByProductIdForUpdate(PRODUCT_ID)).thenReturn(Optional.empty());
+            when(stockRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.empty());
 
             // when
             CoreException ex = assertThrows(CoreException.class, () -> stockService.decrease(PRODUCT_ID, 1));
@@ -65,7 +65,7 @@ class StockServiceTest {
         void throwsConflict_whenStockIsInsufficient() {
             // given
             StockModel stock = new StockModel(PRODUCT_ID, 2);
-            when(stockRepository.findByProductIdForUpdate(PRODUCT_ID)).thenReturn(Optional.of(stock));
+            when(stockRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(stock));
 
             // when
             CoreException ex = assertThrows(CoreException.class, () -> stockService.decrease(PRODUCT_ID, 3));
@@ -84,7 +84,7 @@ class StockServiceTest {
         void increasesQuantity_whenStockExists() {
             // given
             StockModel stock = new StockModel(PRODUCT_ID, 10);
-            when(stockRepository.findByProductIdForUpdate(PRODUCT_ID)).thenReturn(Optional.of(stock));
+            when(stockRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.of(stock));
 
             // when
             stockService.increase(PRODUCT_ID, 5);
@@ -97,7 +97,7 @@ class StockServiceTest {
         @Test
         void throwsNotFound_whenStockDoesNotExist() {
             // given
-            when(stockRepository.findByProductIdForUpdate(PRODUCT_ID)).thenReturn(Optional.empty());
+            when(stockRepository.findByProductId(PRODUCT_ID)).thenReturn(Optional.empty());
 
             // when
             CoreException ex = assertThrows(CoreException.class, () -> stockService.increase(PRODUCT_ID, 1));

@@ -2,7 +2,6 @@ package com.loopers.application.order;
 
 import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.brand.BrandRepository;
-import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.product.ProductModel;
 import com.loopers.domain.product.ProductRepository;
@@ -90,22 +89,22 @@ class OrderFacadeIntegrationTest {
     @Nested
     class PlaceOrder {
 
-        @DisplayName("정상 주문이면 status=SUCCEEDED로 종료되고 재고 차감 + items가 orderId로 영속된다")
+        @DisplayName("정상 주문이면 status=CREATED로 저장되고 재고 차감 + items가 cascade로 영속된다")
         @Test
-        void persistsOrderAsSucceeded_andDecreasesStock() {
+        void persistsOrderWithItems_andDecreasesStock() {
             OrderInfo info = orderFacade.placeOrder(userId, List.of(
                 new OrderLineCommand(product1Id, 2),
                 new OrderLineCommand(product2Id, 1)
             ));
 
             assertAll(
-                () -> assertThat(info.status()).isEqualTo(OrderStatus.SUCCEEDED),
+                () -> assertThat(info.status()).isEqualTo(OrderStatus.CREATED),
                 () -> assertThat(info.totalAmount()).isEqualTo(50_000L * 2 + 30_000L),
                 () -> assertThat(info.items()).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(8),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(4),
                 () -> assertThat(orderJpaRepository.count()).isEqualTo(1),
-                () -> assertThat(orderItemJpaRepository.findAllByOrderId(info.id())).hasSize(2)
+                () -> assertThat(orderItemJpaRepository.count()).isEqualTo(2)
             );
         }
 
@@ -142,9 +141,9 @@ class OrderFacadeIntegrationTest {
             );
         }
 
-        @DisplayName("재고 부족이면 CONFLICT이고 재고는 롤백되지만 Order는 FAILED + items는 잔존한다")
+        @DisplayName("재고 부족이면 CONFLICT이고 전체가 롤백된다 (Order/OrderItem/재고 모두 변경 없음)")
         @Test
-        void throwsConflict_andLeavesFailedOrderRow_whenStockIsInsufficient() {
+        void throwsConflict_andRollsBackEverything_whenStockIsInsufficient() {
             CoreException ex = assertThrows(CoreException.class, () ->
                 orderFacade.placeOrder(userId, List.of(
                     new OrderLineCommand(product1Id, 1),
@@ -152,14 +151,10 @@ class OrderFacadeIntegrationTest {
                 ))
             );
 
-            assertThat(ex.getErrorType()).isEqualTo(ErrorType.CONFLICT);
-            assertThat(orderJpaRepository.count()).isEqualTo(1);
-
-            OrderModel failed = orderJpaRepository.findAll().get(0);
             assertAll(
-                () -> assertThat(failed.getStatus()).isEqualTo(OrderStatus.FAILED),
-                () -> assertThat(failed.getFailureReason()).isNotBlank(),
-                () -> assertThat(orderItemJpaRepository.findAllByOrderId(failed.getId())).hasSize(2),
+                () -> assertThat(ex.getErrorType()).isEqualTo(ErrorType.CONFLICT),
+                () -> assertThat(orderJpaRepository.count()).isZero(),
+                () -> assertThat(orderItemJpaRepository.count()).isZero(),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(10),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(5)
             );
@@ -174,7 +169,7 @@ class OrderFacadeIntegrationTest {
             ));
 
             assertAll(
-                () -> assertThat(info.status()).isEqualTo(OrderStatus.SUCCEEDED),
+                () -> assertThat(info.status()).isEqualTo(OrderStatus.CREATED),
                 () -> assertThat(info.items()).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(5)
             );

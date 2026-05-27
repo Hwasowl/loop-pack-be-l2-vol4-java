@@ -17,9 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyCollection;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,92 +25,31 @@ class OrderServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
-    @Mock
-    private OrderItemRepository orderItemRepository;
-
     @InjectMocks
     private OrderService orderService;
 
-    @DisplayName("placeInitial 시")
+    private OrderItem item(long productId, long unitPrice, int quantity) {
+        return new OrderItem(productId, "상품-" + productId, unitPrice, quantity);
+    }
+
+    @DisplayName("주문 생성 시")
     @Nested
-    class PlaceInitial {
+    class Place {
 
-        @DisplayName("Order 저장 후 items에 orderId를 주입하고 일괄 저장한다 (CREATED 반환)")
+        @DisplayName("유효한 유저·항목으로 호출하면 status=CREATED 주문이 저장되고 그대로 반환된다")
         @Test
-        void savesOrderAndAssignsOrderIdToItems() {
-            OrderItem item1 = new OrderItem(1L, "후드", 10_000L, 2);
-            OrderItem item2 = new OrderItem(2L, "맨투맨", 15_000L, 1);
-            when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> {
-                OrderModel arg = inv.getArgument(0);
-                // 영속화 후 ID가 부여된 것처럼 — Mock으로는 동일 인스턴스 반환만 가능
-                return arg;
-            });
+        void savesAndReturnsCreatedOrder() {
+            OrderItem a = item(1L, 10_000L, 2);
+            OrderItem b = item(2L, 15_000L, 1);
+            when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            OrderModel result = orderService.placeInitial(1L, 35_000L, List.of(item1, item2));
+            OrderModel result = orderService.place(1L, List.of(a, b));
 
             assertAll(
                 () -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED),
-                () -> assertThat(result.getTotalAmount()).isEqualTo(35_000L)
+                () -> assertThat(result.getTotalAmount()).isEqualTo(35_000L),
+                () -> assertThat(result.getItems()).hasSize(2)
             );
-            verify(orderItemRepository, times(1)).saveAll(anyCollection());
-        }
-    }
-
-    @DisplayName("markSucceeded 시")
-    @Nested
-    class MarkSucceeded {
-
-        @DisplayName("존재하는 CREATED 주문이면 status를 SUCCEEDED로 전이하고 OrderModel을 반환한다")
-        @Test
-        void transitionsToSucceeded() {
-            OrderModel order = new OrderModel(1L, 10_000L);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-
-            OrderModel result = orderService.markSucceeded(1L);
-
-            assertAll(
-                () -> assertThat(result).isSameAs(order),
-                () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.SUCCEEDED)
-            );
-        }
-
-        @DisplayName("존재하지 않으면 NOT_FOUND 예외가 발생한다")
-        @Test
-        void throwsNotFound_whenMissing() {
-            when(orderRepository.findById(999L)).thenReturn(Optional.empty());
-
-            CoreException ex = assertThrows(CoreException.class, () -> orderService.markSucceeded(999L));
-
-            assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
-        }
-    }
-
-    @DisplayName("markFailed 시")
-    @Nested
-    class MarkFailed {
-
-        @DisplayName("존재하는 CREATED 주문이면 status를 FAILED로 전이하고 사유를 기록한다")
-        @Test
-        void transitionsToFailedWithReason() {
-            OrderModel order = new OrderModel(1L, 10_000L);
-            when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-
-            orderService.markFailed(1L, "재고가 부족합니다.");
-
-            assertAll(
-                () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED),
-                () -> assertThat(order.getFailureReason()).isEqualTo("재고가 부족합니다.")
-            );
-        }
-
-        @DisplayName("존재하지 않으면 NOT_FOUND 예외가 발생한다")
-        @Test
-        void throwsNotFound_whenMissing() {
-            when(orderRepository.findById(999L)).thenReturn(Optional.empty());
-
-            CoreException ex = assertThrows(CoreException.class, () -> orderService.markFailed(999L, "x"));
-
-            assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
         }
     }
 
@@ -124,7 +60,7 @@ class OrderServiceTest {
         @DisplayName("존재하는 주문이면 그대로 반환한다")
         @Test
         void returnsOrder_whenIdExists() {
-            OrderModel order = new OrderModel(1L, 10_000L);
+            OrderModel order = new OrderModel(1L, List.of(item(1L, 100L, 1)));
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             assertThat(orderService.getById(1L)).isSameAs(order);
@@ -132,7 +68,7 @@ class OrderServiceTest {
 
         @DisplayName("존재하지 않으면 NOT_FOUND 예외가 발생한다")
         @Test
-        void throwsNotFound_whenIdDoesNotExist() {
+        void throwsNotFound_whenMissing() {
             when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
             CoreException ex = assertThrows(CoreException.class, () -> orderService.getById(999L));

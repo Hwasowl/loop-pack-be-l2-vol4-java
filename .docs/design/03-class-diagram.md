@@ -37,19 +37,18 @@ classDiagram
         class OrderStatus {
             <<enumeration>>
             CREATED
-            SUCCEEDED
-            FAILED
         }
         class OrderModel {
             -Long userId
-            +complete(status)
+            -List~OrderItem~ items
+            +place()
         }
         class OrderItem
     }
 
-    ProductModel --> BrandModel : brandId
+    ProductModel ..> BrandModel : brandId
     StockModel ..> ProductModel : productId (1대1)
-    OrderModel "1" *-- "1..*" OrderItem : 구성
+    OrderModel "1" *-- "1..*" OrderItem : 구성 (같은 애그리거트 — D18)
     OrderModel --> OrderStatus : status
     LikeModel ..> ProductModel : productId
     OrderItem ..> ProductModel : productId (스냅샷)

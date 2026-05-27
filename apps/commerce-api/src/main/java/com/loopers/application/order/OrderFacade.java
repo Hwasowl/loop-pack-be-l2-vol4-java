@@ -11,6 +11,7 @@ import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -26,24 +27,23 @@ public class OrderFacade {
     private final StockService stockService;
     private final OrderService orderService;
 
+    /**
+     * 다중 도메인 합성이라 Facade @Transactional을 둔다:
+     * (1) StockService와 OrderService를 한 비즈니스 단위로 묶어야 하고,
+     * (2) 부분 성공(재고만 빠지고 주문은 안 만들어진 상태)은 데이터 비일관성이며,
+     * (3) 외부 I/O는 없다 — 세 조건 모두 충족(CLAUDE.md 트랜잭션 규약).
+     * 실패 복구·동시성 제어는 다음 라운드 주제.
+     */
+    @Transactional
     public OrderInfo placeOrder(Long userId, List<OrderLineCommand> lines) {
         validateInput(lines);
         userService.getById(userId);
         Map<Long, ProductModel> productMap = loadProducts(lines);
-
         List<OrderItem> items = buildItems(lines, productMap);
-        long totalAmount = items.stream().mapToLong(OrderItem::subtotal).sum();
 
-        OrderModel created = orderService.placeInitial(userId, totalAmount, items);
-        try {
-            stockService.decreaseAll(aggregateQuantities(lines));
-            OrderModel succeeded = orderService.markSucceeded(created.getId());
-            return OrderInfo.from(succeeded, items);
-        } catch (CoreException e) {
-            orderService.markFailed(created.getId(),
-                e.getCustomMessage() != null ? e.getCustomMessage() : e.getMessage());
-            throw e;
-        }
+        stockService.decreaseAll(aggregateQuantities(lines));
+        OrderModel saved = orderService.place(userId, items);
+        return OrderInfo.from(saved);
     }
 
     private List<OrderItem> buildItems(List<OrderLineCommand> lines, Map<Long, ProductModel> productMap) {

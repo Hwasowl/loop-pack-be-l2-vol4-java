@@ -30,7 +30,7 @@ public class StockService {
 
     @Transactional
     public void increase(Long productId, int amount) {
-        StockModel stock = stockRepository.findByProductIdForUpdate(productId)
+        StockModel stock = stockRepository.findByProductId(productId)
             .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[productId = " + productId + "] 재고를 찾을 수 없습니다."));
         stock.increase(amount);
     }
@@ -54,7 +54,7 @@ public class StockService {
     }
 
     private void doDecrease(Long productId, int amount) {
-        StockModel stock = stockRepository.findByProductIdForUpdate(productId)
+        StockModel stock = stockRepository.findByProductId(productId)
             .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[productId = " + productId + "] 재고를 찾을 수 없습니다."));
         stock.decrease(amount);
     }

@@ -13,39 +13,18 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderItemRepository orderItemRepository;
 
+    /**
+     * 주문 생성 — Order는 애그리거트 루트이고 OrderItem은 같은 애그리거트라
+     * {@code OrderModel.items}에 @OneToMany cascade=ALL로 매핑돼 있어 한 번의 save로 함께 영속된다.
+     */
     @Transactional
-    public OrderModel placeInitial(Long userId, Long totalAmount, List<OrderItem> items) {
-        OrderModel order = orderRepository.save(new OrderModel(userId, totalAmount));
-        items.forEach(item -> item.assignOrderId(order.getId()));
-        orderItemRepository.saveAll(items);
-        return order;
-    }
-
-    @Transactional
-    public OrderModel markSucceeded(Long orderId) {
-        OrderModel order = loadOrThrow(orderId);
-        order.markSucceeded();
-        return order;
-    }
-
-    @Transactional
-    public void markFailed(Long orderId, String reason) {
-        loadOrThrow(orderId).markFailed(reason);
+    public OrderModel place(Long userId, List<OrderItem> items) {
+        return orderRepository.save(new OrderModel(userId, items));
     }
 
     @Transactional(readOnly = true)
     public OrderModel getById(Long id) {
-        return loadOrThrow(id);
-    }
-
-    @Transactional(readOnly = true)
-    public List<OrderItem> getItemsByOrderId(Long orderId) {
-        return orderItemRepository.findAllByOrderId(orderId);
-    }
-
-    private OrderModel loadOrThrow(Long id) {
         return orderRepository.findById(id)
             .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[id = " + id + "] 주문을 찾을 수 없습니다."));
     }
