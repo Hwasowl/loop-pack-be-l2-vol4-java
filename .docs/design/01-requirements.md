@@ -156,9 +156,9 @@
 - 주문 후 상품의 가격·이름이 바뀌어도 주문 내역은 *당시 값* 그대로 유지.
 
 **제약**
-- 재고 차감과 주문 저장은 **단일 트랜잭션**.
+- 주문 row와 OrderItem 영속은 단일 트랜잭션. 재고 차감은 *별도 트랜잭션*이며, 실패 시 주문 row는 `FAILED`로 영속해 시도 이력을 보존한다.
 - 스냅샷 필드 = `productId`, `productName`, `unitPrice`, `quantity` 4개로 한정.
-- 결제는 이번 라운드 미구현 — **본 라운드 구현 범위는 주문 생성·재고 차감까지이며 Order는 `CREATED`로 종료**한다. `SUCCEEDED`/`FAILED` 분기는 결제 합류 시 확정되며, 시퀀스 다이어그램에는 *향후 흐름*으로만 그린다.
+- 본 라운드 흐름: **주문 생성(`CREATED`) → 재고 차감 → 성공 시 `SUCCEEDED` / 실패 시 `FAILED`**. 결제는 다음 라운드 합류 — `SUCCEEDED`의 조건이 *재고 차감 성공*에서 *재고 차감 + 결제 둘 다 성공*으로 **누적**된다 (재고 실패는 본 라운드와 동일하게 즉시 `FAILED`).
 
 **결제 흐름 (시퀀스 표현만, 구현은 다음 라운드)**
 
@@ -198,7 +198,7 @@
 | D1 | 결제 흐름을 **시퀀스 레벨에서만 표현**. Payment 도메인의 세부 모델·테이블·정책은 정의하지 않음 | Quest 원문 "결제 흐름 (재고 차감, 외부 시스템 연동)" 충실 + brainstorming 비용 절제. 구현은 다음 라운드. *흐름 단계*가 시퀀스에 그려져 있으면 다음 라운드 진입 시 시퀀스 재작성 불필요 |
 | D2 | OrderItem 스냅샷 = `productId, productName, unitPrice, quantity` 4개 최소 | 영수증 수준의 완전 복사는 과잉. 브랜드명·이미지는 조회 시 fallback |
 | D3 | 좋아요 수는 `product.like_count` **비정규화 컬럼**으로 관리. 등록/취소 반영 시 증감, `likes_desc` 정렬·목록 노출은 컬럼 기반 | COUNT 집계는 상품 대량 시 정렬·조회 비용이 큼. 비정규화로 목록 조회·정렬을 단순 컬럼으로 처리. `product_like` 테이블은 관계·멱등의 진실 원천으로 유지하며 증감 근거가 된다 |
-| D4 | `OrderStatus` enum 도입. 값: `CREATED` → `SUCCEEDED` / `FAILED` | 시퀀스에 그려진 결제 흐름의 성공·실패 분기와 일치. `CANCELED`(결제 후 취소) 등은 추후 라운드에 추가 |
+| D4 | `OrderStatus` enum 도입. 값: `CREATED` → `SUCCEEDED` / `FAILED` | 전체 흐름의 *최종 결과*를 표현. 본 라운드는 재고 차감 결과만 반영, 결제 라운드 합류 시 결제 결과까지 *누적*되어 `SUCCEEDED`는 *모든 단계 성공*을 의미하게 된다. `CANCELED`(결제 후 취소) 등은 추후 라운드에 추가 |
 | D5 | 어드민 API **포함 — 단 이번 라운드는 스코프(상품·브랜드 조회)에 해당하는 어드민 *조회*만**. 등록·수정·삭제와 어드민 주문 조회는 추후. 대고객/어드민을 prefix·헤더로 분리 (`/api/v1`+LoginId/Pw vs `/api-admin/v1`+Ldap) | 명세에 어드민 기능이 명시됨. 도메인 모델은 공유하고 오퍼레이션·노출 정보만 분리. CUD 제약(D14·D16)은 미리 정의 |
 | D6 | 좋아요 멱등 = `UNIQUE(user_id, product_id)` + 서비스 분기 | DB 예외 의존 안 함. 흐름 가독성 우선 |
 | D7 | **다도메인 협력은 Facade `@Transactional` 합성 (B안)** — 단 좋아요는 예외. 주문은 `OrderFacade`가 `ProductService` + `StockService` + `OrderService`를 *분기 없이* 합성. 좋아요는 `LikeFacade`가 `LikeService`에 **1:1 위임**하고, `LikeService`가 `ProductService`(상품 조회 + `like_count` 증감)와 협력 | 주문은 합성·분기가 Facade에 없어 규약대로. 좋아요는 *멱등 분기(등록·취소가 실제 반영될 때만 카운터 변경)*가 핵심 유스케이스 흐름이라 **Service 안에 두어야** 한다(Facade 분기 금지 규약) → `like_count` 갱신을 `ProductService` write로 호출. `like_count`는 약한 일관성(D3)이므로 Service↔Service 쓰기를 *이 카운터에 한해* 좁게 허용. 외부 I/O 없는 본 라운드 한정 |

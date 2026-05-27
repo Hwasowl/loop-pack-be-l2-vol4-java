@@ -161,12 +161,12 @@ sequenceDiagram
     opt 재고 부족
         O-->>C: 409 CONFLICT
     end
-    Note over O: 주문 저장 (스냅샷, status=CREATED)
+    Note over O: 주문 저장 (스냅샷, status=CREATED) → 재고 차감 결과를 status에 반영
     O-->>-C: 201 CREATED
-    Note over O: 사후 조건 — 주문 status=CREATED (결제는 다음 라운드)
+    Note over O: 사후 조건 — 주문 status에 재고 차감 결과 반영(본 라운드). 결제 합류 후엔 결제 결과까지 누적
 ```
 
-> 본 라운드 구현 범위는 **주문 생성·재고 차감까지**이며 주문은 `CREATED`로 종료한다(01 §4.4). 결제 호출과 성공/실패 분기는 아래 *5. 주문 결제*로 분리했다.
+> 본 라운드는 재고 차감 결과를 status에 반영한다 — 성공 시 `SUCCEEDED`, 실패 시 `FAILED` (FAILED row는 보존되어 시도 이력 표시). 결제 합류(아래 *5. 주문 결제*) 후엔 *결제 결과까지 누적*되어 `SUCCEEDED`는 *재고 + 결제 모두 성공*을 의미하게 되고, 재고 실패는 본 라운드와 동일하게 즉시 `FAILED`로 종료된다.
 
 ---
 
