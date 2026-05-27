@@ -66,6 +66,16 @@ public class ProductRepositoryImpl implements ProductRepository {
             .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
     }
 
+    @Override
+    public int incrementLikeCount(Long id) {
+        return productJpaRepository.incrementLikeCount(id);
+    }
+
+    @Override
+    public int decrementLikeCount(Long id) {
+        return productJpaRepository.decrementLikeCount(id);
+    }
+
     /**
      * SortOption(도메인) → Spring Data Sort(인프라) 매핑.
      * id desc tiebreak으로 페이지 사이 중복/누락을 방지한다.

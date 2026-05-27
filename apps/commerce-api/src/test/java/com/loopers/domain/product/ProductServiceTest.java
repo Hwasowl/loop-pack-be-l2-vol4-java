@@ -93,25 +93,21 @@ class ProductServiceTest {
     @Nested
     class IncrementLikeCount {
 
-        @DisplayName("상품이 존재하면 likeCount가 증가한다")
+        @DisplayName("상품이 존재해 원자 UPDATE가 1행을 갱신하면 정상 통과한다")
         @Test
-        void increasesLikeCount_whenProductExists() {
+        void passes_whenProductExists() {
             // given
-            ProductModel product = sampleProduct();
-            when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
+            when(productRepository.incrementLikeCount(PRODUCT_ID)).thenReturn(1);
 
-            // when
+            // when / then — 예외 없이 통과
             productService.incrementLikeCount(PRODUCT_ID);
-
-            // then
-            assertThat(product.getLikeCount()).isEqualTo(1);
         }
 
-        @DisplayName("상품이 없으면 NOT_FOUND 예외가 발생한다")
+        @DisplayName("상품이 없어 원자 UPDATE가 0행이면 NOT_FOUND 예외가 발생한다")
         @Test
-        void throwsNotFound_whenProductDoesNotExist() {
+        void throwsNotFound_whenNoRowAffected() {
             // given
-            when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+            when(productRepository.incrementLikeCount(PRODUCT_ID)).thenReturn(0);
 
             // when
             CoreException ex = assertThrows(CoreException.class, () -> productService.incrementLikeCount(PRODUCT_ID));
@@ -125,33 +121,24 @@ class ProductServiceTest {
     @Nested
     class DecrementLikeCount {
 
-        @DisplayName("상품이 존재하면 likeCount가 감소한다")
+        @DisplayName("likeCount가 양수여서 원자 UPDATE가 1행을 갱신하면 정상 통과한다")
         @Test
-        void decreasesLikeCount_whenProductExists() {
+        void passes_whenLikeCountPositive() {
             // given
-            ProductModel product = sampleProduct();
-            product.increaseLike();
-            product.increaseLike();
-            when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.of(product));
+            when(productRepository.decrementLikeCount(PRODUCT_ID)).thenReturn(1);
 
-            // when
+            // when / then — 예외 없이 통과
             productService.decrementLikeCount(PRODUCT_ID);
-
-            // then
-            assertThat(product.getLikeCount()).isEqualTo(1);
         }
 
-        @DisplayName("상품이 없으면 NOT_FOUND 예외가 발생한다")
+        @DisplayName("likeCount가 이미 0이거나 상품이 없어 0행이어도 멱등으로 통과한다")
         @Test
-        void throwsNotFound_whenProductDoesNotExist() {
+        void isIdempotent_whenNoRowAffected() {
             // given
-            when(productRepository.findById(PRODUCT_ID)).thenReturn(Optional.empty());
+            when(productRepository.decrementLikeCount(PRODUCT_ID)).thenReturn(0);
 
-            // when
-            CoreException ex = assertThrows(CoreException.class, () -> productService.decrementLikeCount(PRODUCT_ID));
-
-            // then
-            assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
+            // when / then — 예외 없이 통과
+            productService.decrementLikeCount(PRODUCT_ID);
         }
     }
 }

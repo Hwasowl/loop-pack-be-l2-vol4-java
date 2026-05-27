@@ -4,6 +4,7 @@ import com.loopers.domain.product.ProductModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -22,4 +23,12 @@ public interface ProductJpaRepository extends JpaRepository<ProductModel, Long> 
     Page<ProductModel> findAllByDeletedAtIsNull(Pageable pageable);
 
     Page<ProductModel> findAllByBrandIdAndDeletedAtIsNull(Long brandId, Pageable pageable);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE ProductModel p SET p.likeCount = p.likeCount + 1 WHERE p.id = :id AND p.deletedAt IS NULL")
+    int incrementLikeCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE ProductModel p SET p.likeCount = p.likeCount - 1 WHERE p.id = :id AND p.likeCount > 0 AND p.deletedAt IS NULL")
+    int decrementLikeCount(@Param("id") Long id);
 }

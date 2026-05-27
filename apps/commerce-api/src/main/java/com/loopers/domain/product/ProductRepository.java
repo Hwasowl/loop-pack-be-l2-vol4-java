@@ -15,4 +15,8 @@ public interface ProductRepository {
     Page<ProductModel> search(Long brandId, SortOption sort, Pageable pageable);
     long countByBrandId(Long brandId);
     Map<Long, Long> countByBrandIds(Collection<Long> brandIds);
+
+    /** 비정규화 like_count 원자 증감 — read-modify-write 사이 lost update를 막기 위해 단일 UPDATE로 처리. 영향 행 수를 반환한다. */
+    int incrementLikeCount(Long id);
+    int decrementLikeCount(Long id);
 }

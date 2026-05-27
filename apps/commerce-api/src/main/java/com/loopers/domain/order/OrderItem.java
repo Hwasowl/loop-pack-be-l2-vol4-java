@@ -44,16 +44,16 @@ public class OrderItem {
 
     public OrderItem(Long productId, String productName, Long unitPrice, Integer quantity) {
         if (productId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "productId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "제품 ID는 비어있을 수 없습니다.");
         }
         if (productName == null || productName.isBlank()) {
             throw new CoreException(ErrorType.BAD_REQUEST, "주문 항목의 상품명은 비어있을 수 없습니다.");
         }
         if (unitPrice == null || unitPrice < 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "단가는 0 이상이어야 합니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "단가는 0원 이상이어야 합니다.");
         }
         if (quantity == null || quantity <= 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "수량은 1 이상이어야 합니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "수량은 1개 이상이어야 합니다.");
         }
         this.productId = productId;
         this.productName = productName;

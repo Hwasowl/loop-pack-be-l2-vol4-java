@@ -1,5 +1,6 @@
 package com.loopers.application.order;
 
+import com.loopers.domain.order.OrderFailureReason;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderService;
@@ -37,13 +38,28 @@ public class OrderFacade {
         OrderModel created = orderService.placeInitial(userId, totalAmount, items);
         try {
             stockService.decreaseAll(aggregateQuantities(lines));
-            OrderModel succeeded = orderService.markSucceeded(created.getId());
-            return OrderInfo.from(succeeded, items);
-        } catch (CoreException e) {
-            orderService.markFailed(created.getId(),
-                e.getCustomMessage() != null ? e.getCustomMessage() : e.getMessage());
+        } catch (RuntimeException e) {
+            orderService.markFailed(created.getId(), classifyStockFailure(e));
             throw e;
         }
+        try {
+            OrderModel succeeded = orderService.markSucceeded(created.getId());
+            return OrderInfo.from(succeeded, items);
+        } catch (RuntimeException e) {
+            orderService.markFailed(created.getId(), OrderFailureReason.ORDER_FINALIZE_FAILED);
+            throw e;
+        }
+    }
+
+    private OrderFailureReason classifyStockFailure(Throwable e) {
+        if (e instanceof CoreException ce) {
+            return switch (ce.getErrorType()) {
+                case CONFLICT -> OrderFailureReason.STOCK_SHORTAGE;
+                case NOT_FOUND -> OrderFailureReason.STOCK_NOT_FOUND;
+                default -> OrderFailureReason.UNKNOWN;
+            };
+        }
+        return OrderFailureReason.UNKNOWN;
     }
 
     private List<OrderItem> buildItems(List<OrderLineCommand> lines, Map<Long, ProductModel> productMap) {

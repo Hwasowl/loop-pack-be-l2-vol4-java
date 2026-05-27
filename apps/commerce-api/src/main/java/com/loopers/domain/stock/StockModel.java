@@ -39,10 +39,10 @@ public class StockModel {
 
     public StockModel(Long productId, Integer quantity) {
         if (productId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "productId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "제품 ID는는 비어있을 수 없습니다.");
         }
         if (quantity == null || quantity < 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "재고는 0 이상이어야 합니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "재고는 0개 이상이어야 합니다.");
         }
         this.productId = productId;
         this.quantity = quantity;
@@ -50,7 +50,7 @@ public class StockModel {
 
     public void decrease(int amount) {
         if (amount <= 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "차감 수량은 1 이상이어야 합니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "차감 수량은 1개 이상이어야 합니다.");
         }
         if (this.quantity - amount < 0) {
             throw new CoreException(ErrorType.CONFLICT, "재고가 부족합니다.");

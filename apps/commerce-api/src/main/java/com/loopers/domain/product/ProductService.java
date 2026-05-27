@@ -44,17 +44,24 @@ public class ProductService {
         return productRepository.countByBrandIds(brandIds);
     }
 
+    /**
+     * like_count를 원자적으로 증가시킨다. 동시 like 요청의 lost update를 막기 위해
+     * 도메인 메서드({@link ProductModel#increaseLike()}) 대신 단일 UPDATE 쿼리를 사용한다.
+     * 카운터는 약한 일관성(D3)이므로 도메인 메서드 우회를 허용한다.
+     */
     @Transactional
     public void incrementLikeCount(Long productId) {
-        ProductModel product = productRepository.findById(productId)
-            .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[id = " + productId + "] 상품을 찾을 수 없습니다."));
-        product.increaseLike();
+        if (productRepository.incrementLikeCount(productId) == 0) {
+            throw new CoreException(ErrorType.NOT_FOUND, "[id = " + productId + "] 상품을 찾을 수 없습니다.");
+        }
     }
 
+    /**
+     * like_count를 원자적으로 감소시킨다. 이미 0이면 SQL 조건(like_count > 0)으로 자연 멱등 통과한다.
+     * 호출자가 상품 존재를 사전에 검증한다는 전제(LikeFacade 흐름).
+     */
     @Transactional
     public void decrementLikeCount(Long productId) {
-        ProductModel product = productRepository.findById(productId)
-            .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[id = " + productId + "] 상품을 찾을 수 없습니다."));
-        product.decreaseLike();
+        productRepository.decrementLikeCount(productId);
     }
 }

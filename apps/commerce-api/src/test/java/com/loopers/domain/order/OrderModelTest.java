@@ -72,12 +72,22 @@ class OrderModelTest {
         void marksFailed_whenCreated() {
             OrderModel order = newOrder();
 
-            order.markFailed("재고가 부족합니다.");
+            order.markFailed(OrderFailureReason.STOCK_SHORTAGE);
 
             assertAll(
                 () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED),
-                () -> assertThat(order.getFailureReason()).isEqualTo("재고가 부족합니다.")
+                () -> assertThat(order.getFailureReason()).isEqualTo(OrderFailureReason.STOCK_SHORTAGE)
             );
+        }
+
+        @DisplayName("markFailed에 null이 들어오면 UNKNOWN으로 기록된다")
+        @Test
+        void recordsUnknown_whenReasonIsNull() {
+            OrderModel order = newOrder();
+
+            order.markFailed(null);
+
+            assertThat(order.getFailureReason()).isEqualTo(OrderFailureReason.UNKNOWN);
         }
 
         @DisplayName("이미 SUCCEEDED인 주문은 다시 전이할 수 없다 (CONFLICT)")
@@ -88,7 +98,7 @@ class OrderModelTest {
 
             assertAll(
                 () -> assertThat(assertThrows(CoreException.class, order::markSucceeded).getErrorType()).isEqualTo(ErrorType.CONFLICT),
-                () -> assertThat(assertThrows(CoreException.class, () -> order.markFailed("x")).getErrorType()).isEqualTo(ErrorType.CONFLICT)
+                () -> assertThat(assertThrows(CoreException.class, () -> order.markFailed(OrderFailureReason.UNKNOWN)).getErrorType()).isEqualTo(ErrorType.CONFLICT)
             );
         }
 
@@ -96,11 +106,11 @@ class OrderModelTest {
         @Test
         void throwsConflict_whenAlreadyFailed() {
             OrderModel order = newOrder();
-            order.markFailed("x");
+            order.markFailed(OrderFailureReason.STOCK_SHORTAGE);
 
             assertAll(
                 () -> assertThat(assertThrows(CoreException.class, order::markSucceeded).getErrorType()).isEqualTo(ErrorType.CONFLICT),
-                () -> assertThat(assertThrows(CoreException.class, () -> order.markFailed("y")).getErrorType()).isEqualTo(ErrorType.CONFLICT)
+                () -> assertThat(assertThrows(CoreException.class, () -> order.markFailed(OrderFailureReason.UNKNOWN)).getErrorType()).isEqualTo(ErrorType.CONFLICT)
             );
         }
     }

@@ -25,17 +25,18 @@ public class OrderModel extends BaseEntity {
     @Column(name = "total_amount", nullable = false)
     private Long totalAmount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "failure_reason")
-    private String failureReason;
+    private OrderFailureReason failureReason;
 
     protected OrderModel() {}
 
     public OrderModel(Long userId, Long totalAmount) {
         if (userId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "userId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "유저 ID는 비어있을 수 없습니다.");
         }
         if (totalAmount == null || totalAmount < 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "totalAmount는 0 이상이어야 합니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "주문 금액은 0원 이상이어야 합니다.");
         }
         this.userId = userId;
         this.status = OrderStatus.CREATED;
@@ -47,10 +48,10 @@ public class OrderModel extends BaseEntity {
         this.status = OrderStatus.SUCCEEDED;
     }
 
-    public void markFailed(String reason) {
+    public void markFailed(OrderFailureReason reason) {
         ensureCreated("FAILED");
         this.status = OrderStatus.FAILED;
-        this.failureReason = reason;
+        this.failureReason = reason != null ? reason : OrderFailureReason.UNKNOWN;
     }
 
     private void ensureCreated(String target) {

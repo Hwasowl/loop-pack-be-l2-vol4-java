@@ -31,7 +31,7 @@ public class OrderService {
     }
 
     @Transactional
-    public void markFailed(Long orderId, String reason) {
+    public void markFailed(Long orderId, OrderFailureReason reason) {
         loadOrThrow(orderId).markFailed(reason);
     }
 

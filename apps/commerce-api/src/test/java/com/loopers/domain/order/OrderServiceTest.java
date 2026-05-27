@@ -98,11 +98,11 @@ class OrderServiceTest {
             OrderModel order = new OrderModel(1L, 10_000L);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
-            orderService.markFailed(1L, "재고가 부족합니다.");
+            orderService.markFailed(1L, OrderFailureReason.STOCK_SHORTAGE);
 
             assertAll(
                 () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.FAILED),
-                () -> assertThat(order.getFailureReason()).isEqualTo("재고가 부족합니다.")
+                () -> assertThat(order.getFailureReason()).isEqualTo(OrderFailureReason.STOCK_SHORTAGE)
             );
         }
 
@@ -111,7 +111,7 @@ class OrderServiceTest {
         void throwsNotFound_whenMissing() {
             when(orderRepository.findById(999L)).thenReturn(Optional.empty());
 
-            CoreException ex = assertThrows(CoreException.class, () -> orderService.markFailed(999L, "x"));
+            CoreException ex = assertThrows(CoreException.class, () -> orderService.markFailed(999L, OrderFailureReason.STOCK_SHORTAGE));
 
             assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
         }

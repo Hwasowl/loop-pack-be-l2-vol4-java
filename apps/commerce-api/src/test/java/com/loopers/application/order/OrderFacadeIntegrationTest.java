@@ -2,6 +2,7 @@ package com.loopers.application.order;
 
 import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.brand.BrandRepository;
+import com.loopers.domain.order.OrderFailureReason;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.product.ProductModel;
@@ -158,7 +159,7 @@ class OrderFacadeIntegrationTest {
             OrderModel failed = orderJpaRepository.findAll().get(0);
             assertAll(
                 () -> assertThat(failed.getStatus()).isEqualTo(OrderStatus.FAILED),
-                () -> assertThat(failed.getFailureReason()).isNotBlank(),
+                () -> assertThat(failed.getFailureReason()).isEqualTo(OrderFailureReason.STOCK_SHORTAGE),
                 () -> assertThat(orderItemJpaRepository.findAllByOrderId(failed.getId())).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(10),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(5)

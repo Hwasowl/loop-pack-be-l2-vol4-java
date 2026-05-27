@@ -38,10 +38,10 @@ public class LikeModel {
 
     public LikeModel(Long userId, Long productId) {
         if (userId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "userId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "유저 ID는 비어있을 수 없습니다.");
         }
         if (productId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "productId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "제품 ID는 비어있을 수 없습니다.");
         }
         this.userId = userId;
         this.productId = productId;
