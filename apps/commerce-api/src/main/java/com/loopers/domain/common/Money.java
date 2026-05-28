@@ -22,10 +22,18 @@ public record Money(long value) {
     }
 
     public Money add(Money other) {
-        return new Money(this.value + other.value);
+        try {
+            return new Money(Math.addExact(this.value, other.value));
+        } catch (ArithmeticException e) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "금액 합산이 표현 범위를 초과했습니다.");
+        }
     }
 
     public Money multiply(int quantity) {
-        return new Money(this.value * quantity);
+        try {
+            return new Money(Math.multiplyExact(this.value, quantity));
+        } catch (ArithmeticException e) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "금액 곱셈이 표현 범위를 초과했습니다.");
+        }
     }
 }
