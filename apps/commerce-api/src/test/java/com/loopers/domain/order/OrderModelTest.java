@@ -35,7 +35,7 @@ class OrderModelTest {
             assertAll(
                 () -> assertThat(order.getUserId()).isEqualTo(USER_ID),
                 () -> assertThat(order.getStatus()).isEqualTo(OrderStatus.CREATED),
-                () -> assertThat(order.getTotalAmount()).isEqualTo(35_000L),
+                () -> assertThat(order.getTotalAmount().value()).isEqualTo(35_000L),
                 () -> assertThat(order.getItems()).containsExactly(a, b)
             );
         }

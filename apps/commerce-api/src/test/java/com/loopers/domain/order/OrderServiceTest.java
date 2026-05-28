@@ -47,7 +47,7 @@ class OrderServiceTest {
 
             assertAll(
                 () -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED),
-                () -> assertThat(result.getTotalAmount()).isEqualTo(35_000L),
+                () -> assertThat(result.getTotalAmount().value()).isEqualTo(35_000L),
                 () -> assertThat(result.getItems()).hasSize(2)
             );
         }

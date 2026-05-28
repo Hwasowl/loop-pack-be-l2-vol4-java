@@ -26,7 +26,7 @@ class OrderItemTest {
             assertAll(
                 () -> assertThat(item.getProductId()).isEqualTo(1L),
                 () -> assertThat(item.getProductName()).isEqualTo("후드"),
-                () -> assertThat(item.getUnitPrice()).isEqualTo(10_000L),
+                () -> assertThat(item.getUnitPrice().value()).isEqualTo(10_000L),
                 () -> assertThat(item.getQuantity()).isEqualTo(2)
             );
         }
@@ -71,6 +71,6 @@ class OrderItemTest {
     @Test
     void subtotal_isUnitPriceTimesQuantity() {
         OrderItem item = new OrderItem(1L, "후드", 10_000L, 3);
-        assertThat(item.subtotal()).isEqualTo(30_000L);
+        assertThat(item.subtotal().value()).isEqualTo(30_000L);
     }
 }

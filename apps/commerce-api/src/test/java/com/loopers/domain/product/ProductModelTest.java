@@ -30,7 +30,7 @@ class ProductModelTest {
                 () -> assertThat(product.getBrandId()).isEqualTo(VALID_BRAND_ID),
                 () -> assertThat(product.getName()).isEqualTo(VALID_NAME),
                 () -> assertThat(product.getDescription()).isEqualTo(VALID_DESCRIPTION),
-                () -> assertThat(product.getPrice()).isEqualTo(VALID_PRICE),
+                () -> assertThat(product.getPrice().value()).isEqualTo(VALID_PRICE),
                 () -> assertThat(product.getLikeCount()).isZero()
             );
         }

@@ -22,7 +22,7 @@ public record ProductAdminInfo(
             product.getId(),
             product.getName(),
             product.getDescription(),
-            product.getPrice(),
+            product.getPrice().value(),
             product.getBrandId(),
             brand != null ? brand.getName() : null,
             product.getLikeCount(),

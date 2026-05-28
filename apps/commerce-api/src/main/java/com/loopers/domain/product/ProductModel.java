@@ -1,6 +1,7 @@
 package com.loopers.domain.product;
 
 import com.loopers.domain.BaseEntity;
+import com.loopers.domain.common.Money;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.Column;
@@ -23,7 +24,7 @@ public class ProductModel extends BaseEntity {
     private String description;
 
     @Column(name = "price", nullable = false)
-    private Long price;
+    private Money price;
 
     @Column(name = "like_count", nullable = false)
     private Long likeCount;
@@ -40,13 +41,13 @@ public class ProductModel extends BaseEntity {
         if (description == null || description.isBlank()) {
             throw new CoreException(ErrorType.BAD_REQUEST, "상품 설명은 비어있을 수 없습니다.");
         }
-        if (price == null || price < 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "가격은 0 이상이어야 합니다.");
+        if (price == null) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "가격은 비어있을 수 없습니다.");
         }
         this.brandId = brandId;
         this.name = name;
         this.description = description;
-        this.price = price;
+        this.price = Money.of(price);
         this.likeCount = 0L;
     }
 

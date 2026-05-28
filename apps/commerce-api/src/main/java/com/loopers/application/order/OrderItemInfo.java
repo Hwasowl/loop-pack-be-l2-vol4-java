@@ -13,9 +13,9 @@ public record OrderItemInfo(
         return new OrderItemInfo(
             item.getProductId(),
             item.getProductName(),
-            item.getUnitPrice(),
+            item.getUnitPrice().value(),
             item.getQuantity(),
-            item.subtotal()
+            item.subtotal().value()
         );
     }
 }

@@ -1,5 +1,6 @@
 package com.loopers.domain.order;
 
+import com.loopers.domain.common.Money;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.Column;
@@ -37,7 +38,7 @@ public class OrderItem {
     private String productName;
 
     @Column(name = "unit_price", nullable = false)
-    private Long unitPrice;
+    private Money unitPrice;
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
@@ -54,15 +55,15 @@ public class OrderItem {
         if (productName == null || productName.isBlank()) {
             throw new CoreException(ErrorType.BAD_REQUEST, "주문 항목의 상품명은 비어있을 수 없습니다.");
         }
-        if (unitPrice == null || unitPrice < 0) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "단가는 0원 이상이어야 합니다.");
+        if (unitPrice == null) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "단가는 비어있을 수 없습니다.");
         }
         if (quantity == null || quantity <= 0) {
             throw new CoreException(ErrorType.BAD_REQUEST, "수량은 1개 이상이어야 합니다.");
         }
         this.productId = productId;
         this.productName = productName;
-        this.unitPrice = unitPrice;
+        this.unitPrice = Money.of(unitPrice);
         this.quantity = quantity;
     }
 
@@ -71,8 +72,8 @@ public class OrderItem {
         this.order = order;
     }
 
-    public Long subtotal() {
-        return unitPrice * quantity;
+    public Money subtotal() {
+        return unitPrice.multiply(quantity);
     }
 
     @PrePersist

@@ -1,6 +1,7 @@
 package com.loopers.domain.order;
 
 import com.loopers.domain.BaseEntity;
+import com.loopers.domain.common.Money;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.CascadeType;
@@ -29,9 +30,9 @@ public class OrderModel extends BaseEntity {
     private OrderStatus status;
 
     @Column(name = "total_amount", nullable = false)
-    private Long totalAmount;
+    private Money totalAmount;
 
-    /** REMOVE/orphanRemoval 제외 — hard delete 시 OrderItem이 외래키로 차단되어 주문 이력 보호. */
+    /** hard delete 시 OrderItem이 외래키로 차단되어 주문 이력 보호. */
     @OneToMany(mappedBy = "order", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private final List<OrderItem> items = new ArrayList<>();
 
@@ -47,7 +48,9 @@ public class OrderModel extends BaseEntity {
         this.userId = userId;
         this.status = OrderStatus.CREATED;
         items.forEach(this::addItem);
-        this.totalAmount = this.items.stream().mapToLong(OrderItem::subtotal).sum();
+        this.totalAmount = this.items.stream()
+            .map(OrderItem::subtotal)
+            .reduce(Money.ZERO, Money::add);
     }
 
     public List<OrderItem> getItems() {

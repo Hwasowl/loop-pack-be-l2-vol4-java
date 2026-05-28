@@ -65,7 +65,7 @@ class ProductServiceIntegrationTest {
             Page<ProductModel> page = productService.search(brandId, SortOption.PRICE_ASC, PageRequest.of(0, 20));
 
             // then
-            List<Long> prices = page.getContent().stream().map(ProductModel::getPrice).toList();
+            List<Long> prices = page.getContent().stream().map(p -> p.getPrice().value()).toList();
             assertThat(prices).containsExactly(30_000L, 50_000L, 70_000L);
         }
 

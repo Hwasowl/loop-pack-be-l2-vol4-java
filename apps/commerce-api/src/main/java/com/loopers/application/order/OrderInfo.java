@@ -19,7 +19,7 @@ public record OrderInfo(
             order.getId(),
             order.getUserId(),
             order.getStatus(),
-            order.getTotalAmount(),
+            order.getTotalAmount().value(),
             order.getItems().stream().map(OrderItemInfo::from).toList(),
             order.getCreatedAt()
         );

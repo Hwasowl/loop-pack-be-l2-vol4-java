@@ -51,7 +51,7 @@ public class OrderFacade {
         return lines.stream()
             .map(line -> {
                 ProductModel product = productMap.get(line.productId());
-                return new OrderItem(product.getId(), product.getName(), product.getPrice(), line.quantity());
+                return new OrderItem(product.getId(), product.getName(), product.getPrice().value(), line.quantity());
             })
             .toList();
     }
