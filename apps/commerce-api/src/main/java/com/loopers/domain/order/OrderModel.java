@@ -2,7 +2,7 @@ package com.loopers.domain.order;
 
 import com.loopers.domain.BaseEntity;
 import com.loopers.domain.common.Money;
-import com.loopers.infrastructure.jpa.MoneyConverter;
+import com.loopers.domain.common.MoneyConverter;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.CascadeType;
@@ -35,7 +35,6 @@ public class OrderModel extends BaseEntity {
     @Column(name = "total_amount", nullable = false)
     private Money totalAmount;
 
-    /** hard delete 시 OrderItem이 외래키로 차단되어 주문 이력 보호. */
     @OneToMany(mappedBy = "order", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private final List<OrderItem> items = new ArrayList<>();
 

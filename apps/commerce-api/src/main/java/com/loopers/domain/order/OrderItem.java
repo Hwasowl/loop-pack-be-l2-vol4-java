@@ -1,7 +1,7 @@
 package com.loopers.domain.order;
 
 import com.loopers.domain.common.Money;
-import com.loopers.infrastructure.jpa.MoneyConverter;
+import com.loopers.domain.common.MoneyConverter;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import jakarta.persistence.Column;

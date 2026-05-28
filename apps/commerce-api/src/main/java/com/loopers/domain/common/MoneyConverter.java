@@ -1,6 +1,5 @@
-package com.loopers.infrastructure.jpa;
+package com.loopers.domain.common;
 
-import com.loopers.domain.common.Money;
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
 
