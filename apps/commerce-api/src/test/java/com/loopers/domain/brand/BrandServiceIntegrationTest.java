@@ -145,5 +145,47 @@ class BrandServiceIntegrationTest {
                 () -> assertThat(page.getContent()).extracting(BrandModel::getName).doesNotContain("Deleted")
             );
         }
+
+        @DisplayName("Sort 미지정이어도 id DESC가 기본 적용되어 페이지 사이에 누락/중복이 발생하지 않는다")
+        @Test
+        void appliesIdDescTiebreak_whenSortUnspecified() {
+            // given - 5개 브랜드, 페이지 크기 2
+            BrandModel b1 = brandRepository.save(new BrandModel("B1", "1"));
+            BrandModel b2 = brandRepository.save(new BrandModel("B2", "2"));
+            BrandModel b3 = brandRepository.save(new BrandModel("B3", "3"));
+            BrandModel b4 = brandRepository.save(new BrandModel("B4", "4"));
+            BrandModel b5 = brandRepository.save(new BrandModel("B5", "5"));
+
+            // when - 3페이지를 차례로 조회 (Sort 미지정 = Pageable.unsorted)
+            Page<BrandModel> p0 = brandService.search(PageRequest.of(0, 2));
+            Page<BrandModel> p1 = brandService.search(PageRequest.of(1, 2));
+            Page<BrandModel> p2 = brandService.search(PageRequest.of(2, 2));
+
+            // then - id DESC 정렬로 [b5,b4] [b3,b2] [b1]
+            assertAll(
+                () -> assertThat(p0.getContent()).extracting(BrandModel::getId)
+                    .containsExactly(b5.getId(), b4.getId()),
+                () -> assertThat(p1.getContent()).extracting(BrandModel::getId)
+                    .containsExactly(b3.getId(), b2.getId()),
+                () -> assertThat(p2.getContent()).extracting(BrandModel::getId)
+                    .containsExactly(b1.getId())
+            );
+        }
+
+        @DisplayName("caller가 sort 키를 지정해도 id DESC가 tiebreak으로 부착된다 (동일 키 중복 시 결정성 보장)")
+        @Test
+        void appendsIdDescTiebreak_whenSortAlreadySpecified() {
+            // given - 같은 name으로 2개 (tiebreak 없으면 순서 보장 X)
+            BrandModel first = brandRepository.save(new BrandModel("SameName", "first"));
+            BrandModel second = brandRepository.save(new BrandModel("SameName", "second"));
+
+            // when - name asc 만 지정
+            Page<BrandModel> page = brandService.search(
+                PageRequest.of(0, 10, org.springframework.data.domain.Sort.by("name").ascending()));
+
+            // then - 동일 name 사이에서 id DESC tiebreak — second(나중) 가 먼저
+            assertThat(page.getContent()).extracting(BrandModel::getId)
+                .containsExactly(second.getId(), first.getId());
+        }
     }
 }
