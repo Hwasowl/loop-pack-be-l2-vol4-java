@@ -40,11 +40,13 @@ public class ProductCompositionReader {
 
     public Page<ProductWithDeps> search(Long brandId, SortOption sort, Pageable pageable) {
         Page<ProductModel> products = productService.search(brandId, sort, pageable);
+
         List<Long> productIds = products.getContent().stream().map(ProductModel::getId).toList();
         List<Long> brandIds = products.getContent().stream().map(ProductModel::getBrandId).distinct().toList();
         Map<Long, Integer> quantities = stockService.getQuantities(productIds);
         Map<Long, BrandModel> brands = brandService.findAllByIds(brandIds).stream()
             .collect(Collectors.toMap(BrandModel::getId, Function.identity()));
+
         return products.map(p -> new ProductWithDeps(
             p, brands.get(p.getBrandId()), quantities.getOrDefault(p.getId(), 0)
         ));

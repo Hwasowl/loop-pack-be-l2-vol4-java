@@ -32,7 +32,7 @@ public class ProductModel extends BaseEntity {
 
     public ProductModel(Long brandId, String name, String description, Long price) {
         if (brandId == null) {
-            throw new CoreException(ErrorType.BAD_REQUEST, "brandId는 비어있을 수 없습니다.");
+            throw new CoreException(ErrorType.BAD_REQUEST, "브랜드 ID는 비어있을 수 없습니다.");
         }
         if (name == null || name.isBlank()) {
             throw new CoreException(ErrorType.BAD_REQUEST, "상품명은 비어있을 수 없습니다.");

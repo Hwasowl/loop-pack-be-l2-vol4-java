@@ -32,7 +32,7 @@ public class OrderFacade {
      * (1) StockService와 OrderService를 한 비즈니스 단위로 묶어야 하고,
      * (2) 부분 성공(재고만 빠지고 주문은 안 만들어진 상태)은 데이터 비일관성이며,
      * (3) 외부 I/O는 없다 — 세 조건 모두 충족(CLAUDE.md 트랜잭션 규약).
-     * 실패 복구·동시성 제어는 다음 라운드 주제.
+     * 실패 복구, 동시성 제어는 다음 라운드 주제.
      */
     @Transactional
     public OrderInfo placeOrder(Long userId, List<OrderLineCommand> lines) {
