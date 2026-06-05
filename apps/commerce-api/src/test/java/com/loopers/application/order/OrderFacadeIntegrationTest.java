@@ -2,6 +2,12 @@ package com.loopers.application.order;
 
 import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.brand.BrandRepository;
+import com.loopers.domain.coupon.CouponStatus;
+import com.loopers.domain.coupon.CouponTemplate;
+import com.loopers.domain.coupon.CouponTemplateRepository;
+import com.loopers.domain.coupon.CouponType;
+import com.loopers.domain.coupon.IssuedCoupon;
+import com.loopers.domain.coupon.IssuedCouponRepository;
 import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.product.ProductModel;
 import com.loopers.domain.product.ProductRepository;
@@ -26,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -55,6 +62,12 @@ class OrderFacadeIntegrationTest {
 
     @Autowired
     private OrderItemJpaRepository orderItemJpaRepository;
+
+    @Autowired
+    private CouponTemplateRepository couponTemplateRepository;
+
+    @Autowired
+    private IssuedCouponRepository issuedCouponRepository;
 
     @Autowired
     private DatabaseCleanUp databaseCleanUp;
@@ -89,17 +102,19 @@ class OrderFacadeIntegrationTest {
     @Nested
     class PlaceOrder {
 
-        @DisplayName("정상 주문이면 status=CREATED로 저장되고 재고 차감 + items가 cascade로 영속된다")
+        @DisplayName("쿠폰 없이 정상 주문이면 status=CREATED로 저장되고 재고 차감 + items가 cascade로 영속된다")
         @Test
         void persistsOrderWithItems_andDecreasesStock() {
             OrderInfo info = orderFacade.placeOrder(userId, List.of(
-                new OrderLineCommand(product1Id, 2),
-                new OrderLineCommand(product2Id, 1)
+                new OrderLineCommand(product1Id, 2, null),
+                new OrderLineCommand(product2Id, 1, null)
             ));
 
             assertAll(
                 () -> assertThat(info.status()).isEqualTo(OrderStatus.CREATED),
                 () -> assertThat(info.totalAmount()).isEqualTo(50_000L * 2 + 30_000L),
+                () -> assertThat(info.discountAmount()).isZero(),
+                () -> assertThat(info.finalAmount()).isEqualTo(130_000L),
                 () -> assertThat(info.items()).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(8),
                 () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(4),
@@ -112,7 +127,7 @@ class OrderFacadeIntegrationTest {
         @Test
         void throwsNotFound_andNoRows_whenUserDoesNotExist() {
             CoreException ex = assertThrows(CoreException.class, () ->
-                orderFacade.placeOrder(99_999L, List.of(new OrderLineCommand(product1Id, 1)))
+                orderFacade.placeOrder(99_999L, List.of(new OrderLineCommand(product1Id, 1, null)))
             );
 
             assertAll(
@@ -128,8 +143,8 @@ class OrderFacadeIntegrationTest {
         void throwsNotFound_andNoRows_whenProductDoesNotExist() {
             CoreException ex = assertThrows(CoreException.class, () ->
                 orderFacade.placeOrder(userId, List.of(
-                    new OrderLineCommand(product1Id, 1),
-                    new OrderLineCommand(99_999L, 1)
+                    new OrderLineCommand(product1Id, 1, null),
+                    new OrderLineCommand(99_999L, 1, null)
                 ))
             );
 
@@ -146,8 +161,8 @@ class OrderFacadeIntegrationTest {
         void throwsConflict_andRollsBackEverything_whenStockIsInsufficient() {
             CoreException ex = assertThrows(CoreException.class, () ->
                 orderFacade.placeOrder(userId, List.of(
-                    new OrderLineCommand(product1Id, 1),
-                    new OrderLineCommand(product2Id, 10)
+                    new OrderLineCommand(product1Id, 1, null),
+                    new OrderLineCommand(product2Id, 10, null)
                 ))
             );
 
@@ -164,14 +179,65 @@ class OrderFacadeIntegrationTest {
         @Test
         void aggregatesSameProductLines_forStockDecrease() {
             OrderInfo info = orderFacade.placeOrder(userId, List.of(
-                new OrderLineCommand(product1Id, 2),
-                new OrderLineCommand(product1Id, 3)
+                new OrderLineCommand(product1Id, 2, null),
+                new OrderLineCommand(product1Id, 3, null)
             ));
 
             assertAll(
                 () -> assertThat(info.status()).isEqualTo(OrderStatus.CREATED),
                 () -> assertThat(info.items()).hasSize(2),
                 () -> assertThat(stockRepository.findByProductId(product1Id).orElseThrow().getQuantity()).isEqualTo(5)
+            );
+        }
+    }
+
+    @DisplayName("항목별 쿠폰 적용 시")
+    @Nested
+    class PlaceOrderWithCoupon {
+
+        @DisplayName("항목에 쿠폰을 적용하면 해당 항목만 할인되고 쿠폰이 USED로 추적된다")
+        @Test
+        void appliesCouponPerItem_andTracksUsage() {
+            // given - 정률 10% 쿠폰을 product1에 적용
+            CouponTemplate template = couponTemplateRepository.save(
+                new CouponTemplate("10% 할인", CouponType.RATE, 10L, null, ZonedDateTime.now().plusDays(7)));
+            IssuedCoupon coupon = issuedCouponRepository.save(new IssuedCoupon(userId, template.getId()));
+
+            // when - product1(50,000 x 2 = 100,000)에만 쿠폰, product2는 미적용
+            OrderInfo info = orderFacade.placeOrder(userId, List.of(
+                new OrderLineCommand(product1Id, 2, coupon.getId()),
+                new OrderLineCommand(product2Id, 1, null)
+            ));
+
+            // then
+            assertAll(
+                () -> assertThat(info.totalAmount()).isEqualTo(130_000L),
+                () -> assertThat(info.discountAmount()).isEqualTo(10_000L),
+                () -> assertThat(info.finalAmount()).isEqualTo(120_000L),
+                () -> assertThat(issuedCouponRepository.findById(coupon.getId()).orElseThrow().getStatus())
+                    .isEqualTo(CouponStatus.USED)
+            );
+        }
+
+        @DisplayName("이미 사용된 쿠폰으로 주문하면 CONFLICT이고 재고·주문이 모두 롤백된다")
+        @Test
+        void rollsBackEverything_whenCouponAlreadyUsed() {
+            // given - 쿠폰을 첫 주문에서 사용 처리
+            CouponTemplate template = couponTemplateRepository.save(
+                new CouponTemplate("3천원 할인", CouponType.FIXED, 3_000L, null, ZonedDateTime.now().plusDays(7)));
+            IssuedCoupon coupon = issuedCouponRepository.save(new IssuedCoupon(userId, template.getId()));
+            orderFacade.placeOrder(userId, List.of(new OrderLineCommand(product1Id, 1, coupon.getId())));
+
+            // when - 같은 쿠폰으로 재주문
+            CoreException ex = assertThrows(CoreException.class, () ->
+                orderFacade.placeOrder(userId, List.of(new OrderLineCommand(product2Id, 1, coupon.getId())))
+            );
+
+            // then - 두 번째 주문은 전체 롤백 (product2 재고 유지, 주문은 첫 건만)
+            assertAll(
+                () -> assertThat(ex.getErrorType()).isEqualTo(ErrorType.CONFLICT),
+                () -> assertThat(stockRepository.findByProductId(product2Id).orElseThrow().getQuantity()).isEqualTo(5),
+                () -> assertThat(orderJpaRepository.count()).isEqualTo(1)
             );
         }
     }

@@ -67,18 +67,18 @@ class CouponServiceIntegrationTest {
             );
         }
 
-        @DisplayName("같은 유저가 같은 템플릿을 두 번 발급하면 CONFLICT 예외가 발생한다")
+        @DisplayName("같은 유저가 같은 템플릿을 여러 번 발급하면 각각 별개의 쿠폰으로 저장된다")
         @Test
-        void throwsConflict_whenIssuedTwice() {
+        void issuesMultipleCoupons_forSameTemplate() {
             // given
             templateId = savedTemplateId();
-            couponService.issue(USER_ID, templateId);
 
             // when
-            CoreException ex = assertThrows(CoreException.class, () -> couponService.issue(USER_ID, templateId));
+            IssuedCoupon first = couponService.issue(USER_ID, templateId);
+            IssuedCoupon second = couponService.issue(USER_ID, templateId);
 
             // then
-            assertThat(ex.getErrorType()).isEqualTo(ErrorType.CONFLICT);
+            assertThat(first.getId()).isNotEqualTo(second.getId());
         }
 
         @DisplayName("존재하지 않는 템플릿으로 발급하면 NOT_FOUND 예외가 발생한다")

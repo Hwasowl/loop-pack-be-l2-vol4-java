@@ -1,5 +1,6 @@
 package com.loopers.domain.order;
 
+import com.loopers.domain.common.Money;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.DisplayName;
@@ -64,6 +65,38 @@ class OrderModelTest {
             assertAll(
                 () -> assertThat(assertThrows(CoreException.class, () -> new OrderModel(USER_ID, null)).getErrorType()).isEqualTo(ErrorType.BAD_REQUEST),
                 () -> assertThat(assertThrows(CoreException.class, () -> new OrderModel(USER_ID, List.of())).getErrorType()).isEqualTo(ErrorType.BAD_REQUEST)
+            );
+        }
+    }
+
+    @DisplayName("금액 스냅샷은")
+    @Nested
+    class AmountSnapshot {
+
+        @DisplayName("항목별 할인액을 합산해 discountAmount와 finalAmount를 계산한다")
+        @Test
+        void aggregatesItemDiscounts() {
+            // given - item1: subtotal 20,000, 할인 5,000 / item2: subtotal 15,000, 할인 0
+            OrderItem a = new OrderItem(101L, "상품-101", 10_000L, 2, 500L, Money.of(5_000L));
+            OrderItem b = item(102L, 5_000L, 3);
+
+            OrderModel order = new OrderModel(USER_ID, List.of(a, b));
+
+            assertAll(
+                () -> assertThat(order.getTotalAmount().value()).isEqualTo(35_000L),
+                () -> assertThat(order.getDiscountAmount().value()).isEqualTo(5_000L),
+                () -> assertThat(order.getFinalAmount().value()).isEqualTo(30_000L)
+            );
+        }
+
+        @DisplayName("쿠폰 미적용 항목만 있으면 할인액은 0이고 finalAmount는 totalAmount와 같다")
+        @Test
+        void noDiscount_whenNoCouponApplied() {
+            OrderModel order = new OrderModel(USER_ID, List.of(item(101L, 10_000L, 1)));
+
+            assertAll(
+                () -> assertThat(order.getDiscountAmount().value()).isZero(),
+                () -> assertThat(order.getFinalAmount().value()).isEqualTo(10_000L)
             );
         }
     }
