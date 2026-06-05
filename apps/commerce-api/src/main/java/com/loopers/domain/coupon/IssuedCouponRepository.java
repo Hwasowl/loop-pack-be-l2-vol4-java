@@ -1,6 +1,8 @@
 package com.loopers.domain.coupon;
 
+import java.util.Optional;
+
 public interface IssuedCouponRepository {
     IssuedCoupon save(IssuedCoupon coupon);
-    boolean existsByUserIdAndCouponTemplateId(Long userId, Long couponTemplateId);
+    Optional<IssuedCoupon> findById(Long id);
 }

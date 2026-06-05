@@ -11,6 +11,8 @@ public record OrderInfo(
     Long userId,
     OrderStatus status,
     Long totalAmount,
+    Long discountAmount,
+    Long finalAmount,
     List<OrderItemInfo> items,
     ZonedDateTime createdAt
 ) {
@@ -20,6 +22,8 @@ public record OrderInfo(
             order.getUserId(),
             order.getStatus(),
             order.getTotalAmount().value(),
+            order.getDiscountAmount().value(),
+            order.getFinalAmount().value(),
             order.getItems().stream().map(OrderItemInfo::from).toList(),
             order.getCreatedAt()
         );

@@ -36,4 +36,9 @@ public record Money(long value) {
             throw new CoreException(ErrorType.BAD_REQUEST, "금액 곱셈이 표현 범위를 초과했습니다.");
         }
     }
+
+    /** 차감 결과가 음수면 Money 생성자가 BAD_REQUEST로 막는다 (할인액이 주문 금액을 초과하는 경우 방어). */
+    public Money subtract(Money other) {
+        return new Money(this.value - other.value);
+    }
 }

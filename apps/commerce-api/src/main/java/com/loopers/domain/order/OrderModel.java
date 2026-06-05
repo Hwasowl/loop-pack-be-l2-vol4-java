@@ -31,9 +31,20 @@ public class OrderModel extends BaseEntity {
     @Column(name = "status", nullable = false)
     private OrderStatus status;
 
+    /** 쿠폰 적용 전 금액 — 항목 subtotal 합계. */
     @Convert(converter = MoneyConverter.class)
     @Column(name = "total_amount", nullable = false)
     private Money totalAmount;
+
+    /** 쿠폰 할인 금액. 미적용 시 0. */
+    @Convert(converter = MoneyConverter.class)
+    @Column(name = "discount_amount", nullable = false)
+    private Money discountAmount;
+
+    /** 최종 결제 금액 = totalAmount - discountAmount. */
+    @Convert(converter = MoneyConverter.class)
+    @Column(name = "final_amount", nullable = false)
+    private Money finalAmount;
 
     @OneToMany(mappedBy = "order", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private final List<OrderItem> items = new ArrayList<>();
@@ -53,6 +64,11 @@ public class OrderModel extends BaseEntity {
         this.totalAmount = this.items.stream()
             .map(OrderItem::subtotal)
             .reduce(Money.ZERO, Money::add);
+        // 항목별 쿠폰 할인의 합. 어떤 쿠폰이 적용됐는지는 각 OrderItem이 보유한다.
+        this.discountAmount = this.items.stream()
+            .map(OrderItem::getDiscountAmount)
+            .reduce(Money.ZERO, Money::add);
+        this.finalAmount = this.totalAmount.subtract(this.discountAmount);
     }
 
     public List<OrderItem> getItems() {

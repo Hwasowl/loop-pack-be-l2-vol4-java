@@ -8,17 +8,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.Getter;
 
-/** 유저에게 발급된 쿠폰. CouponTemplate은 다른 애그리거트라 ID 참조한다. */
+/** 유저에게 발급된 쿠폰. 한 유저가 같은 템플릿을 여러 장 발급받을 수 있다. CouponTemplate은 다른 애그리거트라 ID 참조한다. */
 @Getter
 @Entity
-@Table(
-    name = "issued_coupon",
-    uniqueConstraints = @UniqueConstraint(name = "uk_issued_coupon_user_template", columnNames = {"user_id", "coupon_template_id"})
-)
+@Table(name = "issued_coupon")
 public class IssuedCoupon extends BaseEntity {
 
     @Column(name = "user_id", nullable = false)
