@@ -10,9 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
 
-/**
- * 쿠폰 템플릿 관리(어드민). 대고객 CouponService와 호출자·권한 경계가 갈리고 유스케이스가 묶여 분리한다.
- */
 @RequiredArgsConstructor
 @Component
 public class CouponAdminService {

@@ -21,7 +21,6 @@ public class CouponService {
     private final CouponTemplateRepository couponTemplateRepository;
     private final IssuedCouponRepository issuedCouponRepository;
 
-    /** 쿠폰 발급. 한 유저가 같은 템플릿을 여러 장 발급받을 수 있다. 이미 만료된 템플릿은 발급할 수 없다. */
     @Transactional
     public IssuedCoupon issue(Long userId, Long couponTemplateId) {
         CouponTemplate template = couponTemplateRepository.findById(couponTemplateId)
@@ -37,18 +36,12 @@ public class CouponService {
         return issuedCouponRepository.findAllByUserId(userId);
     }
 
-    /** 발급 쿠폰 목록의 표시 상태(만료 판정)를 위해 템플릿을 id로 묶어 조회한다. */
     @Transactional(readOnly = true)
     public Map<Long, CouponTemplate> getTemplatesByIds(Collection<Long> ids) {
         return couponTemplateRepository.findAllByIds(ids).stream()
             .collect(Collectors.toMap(CouponTemplate::getId, Function.identity()));
     }
 
-    /**
-     * 쿠폰을 사용 처리하고 할인액을 반환한다. 소유·만료·최소금액·재사용을 검증한다.
-     * 동일 쿠폰 동시 사용은 @Version 낙관적 락으로 1건만 커밋되고 나머지는 충돌 예외로 실패한다.
-     * 타 유저 소유 쿠폰은 존재를 숨기기 위해 NOT_FOUND로 응답한다.
-     */
     @Transactional
     public Money use(Long userId, Long couponId, Money orderAmount) {
         IssuedCoupon coupon = issuedCouponRepository.findById(couponId)
