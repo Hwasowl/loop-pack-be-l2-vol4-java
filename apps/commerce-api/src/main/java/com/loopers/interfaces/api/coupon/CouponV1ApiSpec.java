@@ -6,6 +6,7 @@ import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
 
 import java.util.List;
 
@@ -16,7 +17,7 @@ public interface CouponV1ApiSpec {
         summary = "쿠폰 발급",
         description = "쿠폰 템플릿(couponId)으로 쿠폰을 발급받습니다. 같은 템플릿을 여러 번 발급받을 수 있습니다."
     )
-    ApiResponse<IssueCouponV1Response> issue(AuthUser authUser, Long couponId);
+    ApiResponse<IssueCouponV1Response> issue(AuthUser authUser, @Positive Long couponId);
 
     @Operation(
         summary = "내 쿠폰 목록 조회",

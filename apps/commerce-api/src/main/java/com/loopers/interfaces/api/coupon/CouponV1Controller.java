@@ -7,6 +7,7 @@ import com.loopers.interfaces.api.auth.LoginUser;
 import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +19,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
+@Validated
 public class CouponV1Controller implements CouponV1ApiSpec {
 
     private final CouponFacade couponFacade;

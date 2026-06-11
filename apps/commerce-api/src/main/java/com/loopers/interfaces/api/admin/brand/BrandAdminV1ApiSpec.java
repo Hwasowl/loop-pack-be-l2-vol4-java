@@ -5,6 +5,7 @@ import com.loopers.interfaces.api.admin.brand.dto.BrandAdminV1Response;
 import com.loopers.interfaces.api.auth.AdminUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Positive;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -15,5 +16,5 @@ public interface BrandAdminV1ApiSpec {
     ApiResponse<Page<BrandAdminV1Response>> search(AdminUser admin, Pageable pageable);
 
     @Operation(summary = "브랜드 상세 조회", description = "브랜드 단건을 조회합니다(상품 수 포함).")
-    ApiResponse<BrandAdminV1Response> getBrand(AdminUser admin, Long brandId);
+    ApiResponse<BrandAdminV1Response> getBrand(AdminUser admin, @Positive Long brandId);
 }

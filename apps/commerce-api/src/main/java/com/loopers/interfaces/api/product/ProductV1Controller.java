@@ -7,6 +7,7 @@ import com.loopers.interfaces.api.product.dto.ProductV1Response;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
+@Validated
 public class ProductV1Controller implements ProductV1ApiSpec {
 
     private final ProductFacade productFacade;
