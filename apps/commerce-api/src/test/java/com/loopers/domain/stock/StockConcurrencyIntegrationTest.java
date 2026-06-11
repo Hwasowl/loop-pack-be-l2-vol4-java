@@ -83,6 +83,7 @@ class StockConcurrencyIntegrationTest {
             assertThat(doneLatch.await(10, TimeUnit.SECONDS)).isTrue();
         } finally {
             executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
         }
 
         // then - 5건만 성공, 5건 실패(재고 부족 CONFLICT), 재고 0 (음수 없음), 예상 외 예외 없음

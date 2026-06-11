@@ -8,6 +8,7 @@ import com.loopers.domain.coupon.CouponType;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
+import com.loopers.support.error.ErrorType;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -141,10 +142,7 @@ class CouponApiE2ETest {
             new ParameterizedTypeReference<>() {}
         );
 
-        assertAll(
-            () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND),
-            () -> assertThat(response.getBody().meta().result()).isEqualTo(ApiResponse.Metadata.Result.FAIL)
-        );
+        assertErrorResponse(response, HttpStatus.NOT_FOUND, ErrorType.NOT_FOUND);
     }
 
     @DisplayName("만료된 템플릿으로 발급하면 409 CONFLICT 이고 표준 에러 응답(FAIL) 형식을 따른다")
@@ -158,9 +156,16 @@ class CouponApiE2ETest {
             new ParameterizedTypeReference<>() {}
         );
 
+        assertErrorResponse(response, HttpStatus.CONFLICT, ErrorType.CONFLICT);
+    }
+
+    private void assertErrorResponse(
+        ResponseEntity<ApiResponse<IssueCouponV1Response>> response, HttpStatus expectedStatus, ErrorType expectedType) {
         assertAll(
-            () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT),
-            () -> assertThat(response.getBody().meta().result()).isEqualTo(ApiResponse.Metadata.Result.FAIL)
+            () -> assertThat(response.getStatusCode()).isEqualTo(expectedStatus),
+            () -> assertThat(response.getBody().meta().result()).isEqualTo(ApiResponse.Metadata.Result.FAIL),
+            () -> assertThat(response.getBody().meta().errorCode()).isEqualTo(expectedType.getCode()),
+            () -> assertThat(response.getBody().meta().message()).isNotBlank()
         );
     }
 }
