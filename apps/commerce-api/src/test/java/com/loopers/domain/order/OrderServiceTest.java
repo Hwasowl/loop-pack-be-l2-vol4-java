@@ -1,5 +1,6 @@
 package com.loopers.domain.order;
 
+import com.loopers.domain.common.Money;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import org.junit.jupiter.api.DisplayName;
@@ -43,12 +44,28 @@ class OrderServiceTest {
             OrderItem b = item(2L, 15_000L, 1);
             when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            OrderModel result = orderService.place(1L, List.of(a, b));
+            OrderModel result = orderService.place(1L, List.of(a, b), null, Money.ZERO);
 
             assertAll(
                 () -> assertThat(result.getStatus()).isEqualTo(OrderStatus.CREATED),
                 () -> assertThat(result.getTotalAmount().value()).isEqualTo(35_000L),
                 () -> assertThat(result.getItems()).hasSize(2)
+            );
+        }
+
+        @DisplayName("쿠폰과 할인액을 전달하면 issuedCouponId·discountAmount·finalAmount가 반영된 주문이 저장된다")
+        @Test
+        void appliesCouponAndDiscount() {
+            OrderItem a = item(1L, 10_000L, 2);   // 20_000
+            OrderItem b = item(2L, 15_000L, 1);   // 15_000
+            when(orderRepository.save(any(OrderModel.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            OrderModel result = orderService.place(1L, List.of(a, b), 10L, Money.of(5_000L));
+
+            assertAll(
+                () -> assertThat(result.getIssuedCouponId()).isEqualTo(10L),
+                () -> assertThat(result.getDiscountAmount().value()).isEqualTo(5_000L),
+                () -> assertThat(result.getFinalAmount().value()).isEqualTo(30_000L)
             );
         }
     }
@@ -60,7 +77,7 @@ class OrderServiceTest {
         @DisplayName("존재하는 주문이면 그대로 반환한다")
         @Test
         void returnsOrder_whenIdExists() {
-            OrderModel order = new OrderModel(1L, List.of(item(1L, 100L, 1)));
+            OrderModel order = new OrderModel(1L, List.of(item(1L, 100L, 1)), null, Money.ZERO);
             when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
 
             assertThat(orderService.getById(1L)).isSameAs(order);

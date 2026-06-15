@@ -21,7 +21,6 @@ public class StockService {
         doDecrease(productId, amount);
     }
 
-    /** productId 오름차순 처리 — 동시 호출에서 락 순서를 통일해 데드락을 회피한다. */
     @Transactional
     public void decreaseAll(Map<Long, Integer> quantitiesByProductId) {
         quantitiesByProductId.entrySet().stream()
@@ -29,7 +28,6 @@ public class StockService {
             .forEach(entry -> doDecrease(entry.getKey(), entry.getValue()));
     }
 
-    /** 운영 보충/보상 경로. decrease와 동일 행을 다루므로 lost update 방지를 위해 차감과 같은 FOR UPDATE 경로 사용. */
     @Transactional
     public void increase(Long productId, int amount) {
         StockModel stock = stockRepository.findByProductIdForUpdate(productId)
