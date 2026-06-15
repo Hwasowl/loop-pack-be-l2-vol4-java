@@ -1,5 +1,7 @@
 package com.loopers.application.order;
 
+import com.loopers.domain.common.Money;
+import com.loopers.domain.coupon.CouponService;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderService;
@@ -27,27 +29,23 @@ public class OrderFacade {
     private final ProductService productService;
     private final StockService stockService;
     private final OrderService orderService;
+    private final CouponService couponService;
 
-    /**
-     * 다중 도메인 합성이라 Facade @Transactional을 둔다:
-     * (1) StockService와 OrderService를 한 비즈니스 단위로 묶어야 하고,
-     * (2) 부분 성공(재고만 빠지고 주문은 안 만들어진 상태)은 데이터 비일관성이며,
-     * (3) 외부 I/O는 없다 — 세 조건 모두 충족(CLAUDE.md 트랜잭션 규약).
-     * 실패 복구, 동시성 제어는 다음 라운드 주제.
-     */
     @Transactional
-    public OrderInfo placeOrder(Long userId, List<OrderLineCommand> lines) {
+    public OrderInfo placeOrder(Long userId, List<OrderLineCommand> lines, Long couponId) {
         validateInput(lines);
         userService.getById(userId);
         Map<Long, ProductModel> productMap = loadProducts(lines);
-        List<OrderItem> items = buildItems(lines, productMap);
 
         stockService.decreaseAll(aggregateQuantities(lines));
-        OrderModel saved = orderService.place(userId, items);
+        List<OrderItem> items = buildItems(lines, productMap);
+        Money totalAmount = items.stream().map(OrderItem::subtotal).reduce(Money.ZERO, Money::add);
+        Money discount = couponId == null ? Money.ZERO : couponService.use(userId, couponId, totalAmount);
+
+        OrderModel saved = orderService.place(userId, items, couponId, discount);
         return OrderInfo.from(saved);
     }
 
-    /** 같은 productId가 여러 line으로 와도 OrderItem은 line별로 1행씩 보존한다 (이력/표시 의도). 재고 차감만 {@link #aggregateQuantities}로 합산한다. */
     private List<OrderItem> buildItems(List<OrderLineCommand> lines, Map<Long, ProductModel> productMap) {
         return lines.stream()
             .map(line -> {
