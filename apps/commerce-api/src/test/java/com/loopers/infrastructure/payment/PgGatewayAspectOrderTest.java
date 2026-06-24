@@ -2,6 +2,7 @@ package com.loopers.infrastructure.payment;
 
 import com.loopers.domain.payment.CardType;
 import com.loopers.domain.payment.GatewayCommand;
+import com.loopers.domain.payment.GatewayResult;
 import com.loopers.domain.payment.PaymentGateway;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,5 +67,17 @@ class PgGatewayAspectOrderTest {
         assertThat(circuit.getMetrics().getNumberOfBufferedCalls()).isEqualTo(1);
         assertThat(circuit.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
         verify(pgClient, times(2)).requestPayment(any());
+    }
+
+    @DisplayName("응답 유실(IO 오류) 시 결제 요청을 재전송하지 않고 1회만 호출한다 — 이중 접수 방지")
+    @Test
+    void doesNotRetry_whenResponseLost() {
+        // 응답을 못 받은 상황(read-timeout·연결끊김)을 흉내 — 접수가 됐을 수도 있어 재전송하면 이중 거래 위험
+        when(pgClient.requestPayment(any())).thenThrow(new ResourceAccessException("Read timed out"));
+
+        GatewayResult result = paymentGateway.requestPayment(CMD); // 재시도 없이 Fallback → pending
+
+        verify(pgClient, times(1)).requestPayment(any());
+        assertThat(result.accepted()).isFalse();
     }
 }
