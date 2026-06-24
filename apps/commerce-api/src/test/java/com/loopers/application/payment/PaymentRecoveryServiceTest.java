@@ -41,7 +41,7 @@ class PaymentRecoveryServiceTest {
 
     @BeforeEach
     void setUp() {
-        recoveryService = new PaymentRecoveryService(paymentRepository, paymentGateway, paymentService, Duration.ofMinutes(5));
+        recoveryService = new PaymentRecoveryService(paymentRepository, paymentGateway, paymentService, Duration.ofSeconds(30), Duration.ofMinutes(10));
     }
 
     private PaymentModel payment(String transactionKey) {
@@ -115,6 +115,24 @@ class PaymentRecoveryServiceTest {
 
             recoveryService.recoverKeyless();
 
+            verify(paymentService, never()).failByOrderId(any(), any());
+            verify(paymentService, never()).confirmFromGatewayStatus(any(), any(), any());
+            verify(paymentService, never()).assignTransactionKey(any(), any());
+        }
+    }
+
+    @DisplayName("STUCK 임계 시간 초과 PENDING 점검 시")
+    @Nested
+    class FlagStuck {
+
+        @DisplayName("오래 PENDING인 건이 있어도 상태를 바꾸지 않고 조회만 수행한다(격리 로그)")
+        @Test
+        void queriesWithoutMutating() {
+            when(paymentRepository.findStuckPending(any())).thenReturn(List.of(payment("tx-old")));
+
+            recoveryService.flagStuck();
+
+            verify(paymentRepository).findStuckPending(any());
             verify(paymentService, never()).failByOrderId(any(), any());
             verify(paymentService, never()).confirmFromGatewayStatus(any(), any(), any());
             verify(paymentService, never()).assignTransactionKey(any(), any());

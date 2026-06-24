@@ -37,7 +37,8 @@ payment:
     read-timeout-ms: 2000      # 응답(접수) 타임아웃 — PG 요청지연 100~500ms 위 여유
   recovery:
     fixed-delay-ms: 30000      # 복구 스케줄러 주기
-    pending-timeout: PT5M      # 거래키 없는 PENDING을 미접수로 판단·취소하기까지의 유예
+    pending-grace: PT30S       # 거래키 없는 PENDING을 orderId로 역조회 시작하기까지 유예 (PG 처리지연 1~5s 역산)
+    stuck-threshold: PT10M     # 이 시간 넘게 PENDING이면 자동복구로 못 푼 건 — 격리 대상으로 로그/알림(사람이 점검)
 
 resilience4j:
   circuitbreaker:

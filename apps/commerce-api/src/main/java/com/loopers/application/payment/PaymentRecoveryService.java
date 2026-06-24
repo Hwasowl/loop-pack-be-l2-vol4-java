@@ -6,31 +6,37 @@ import com.loopers.domain.payment.PaymentModel;
 import com.loopers.domain.payment.PaymentRepository;
 import com.loopers.domain.payment.PaymentService;
 import com.loopers.domain.payment.PaymentStatus;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.List;
 
+@Slf4j
 @Component
 public class PaymentRecoveryService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGateway paymentGateway;
     private final PaymentService paymentService;
-    private final Duration pendingTimeout;
+    private final Duration pendingGrace;
+    private final Duration stuckThreshold;
 
     public PaymentRecoveryService(
         PaymentRepository paymentRepository,
         PaymentGateway paymentGateway,
         PaymentService paymentService,
-        @Value("${payment.recovery.pending-timeout:PT5M}") Duration pendingTimeout
+        @Value("${payment.recovery.pending-grace:PT30S}") Duration pendingGrace,
+        @Value("${payment.recovery.stuck-threshold:PT10M}") Duration stuckThreshold
     ) {
         this.paymentRepository = paymentRepository;
         this.paymentGateway = paymentGateway;
         this.paymentService = paymentService;
-        this.pendingTimeout = pendingTimeout;
+        this.pendingGrace = pendingGrace;
+        this.stuckThreshold = stuckThreshold;
     }
 
     public void reconcilePending() {
@@ -49,7 +55,7 @@ public class PaymentRecoveryService {
 
     /** 거래키조차 못 받은(요청 타임아웃) PENDING을 주문 기준으로 메꾼다 — 유예시간 경과 건만 대상. */
     public void recoverKeyless() {
-        ZonedDateTime cutoff = ZonedDateTime.now().minus(pendingTimeout);
+        ZonedDateTime cutoff = ZonedDateTime.now().minus(pendingGrace);
         for (PaymentModel payment : paymentRepository.findKeylessPendingBefore(cutoff)) {
             GatewayLookup lookup = paymentGateway.queryByOrderId(payment.getOrderId(), payment.getUserId());
             try {
@@ -66,6 +72,16 @@ public class PaymentRecoveryService {
             } catch (ObjectOptimisticLockingFailureException alreadyConfirmed) {
                 // 콜백·다른 인스턴스가 동시에 확정 — no-op, 다음 건으로 진행
             }
+        }
+    }
+
+    /** 자동 복구로도 못 푼 채 너무 오래 PENDING인 건을 격리 대상으로 알린다(상태는 두고 사람이 점검). */
+    public void flagStuck() {
+        ZonedDateTime cutoff = ZonedDateTime.now().minus(stuckThreshold);
+        List<PaymentModel> stuck = paymentRepository.findStuckPending(cutoff);
+        if (!stuck.isEmpty()) {
+            log.error("결제 STUCK 감지 — {}건이 {} 넘게 PENDING. 수동 점검 필요: orderIds={}",
+                stuck.size(), stuckThreshold, stuck.stream().map(PaymentModel::getOrderId).toList());
         }
     }
 }

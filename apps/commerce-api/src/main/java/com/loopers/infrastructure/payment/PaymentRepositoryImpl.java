@@ -40,4 +40,9 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     public List<PaymentModel> findKeylessPendingBefore(ZonedDateTime cutoff) {
         return paymentJpaRepository.findAllByStatusAndTransactionKeyIsNullAndCreatedAtBeforeAndDeletedAtIsNull(PaymentStatus.PENDING, cutoff);
     }
+
+    @Override
+    public List<PaymentModel> findStuckPending(ZonedDateTime cutoff) {
+        return paymentJpaRepository.findAllByStatusAndCreatedAtBeforeAndDeletedAtIsNull(PaymentStatus.PENDING, cutoff);
+    }
 }
