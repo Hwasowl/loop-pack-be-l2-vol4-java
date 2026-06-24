@@ -52,6 +52,16 @@ public class PaymentService {
         }
     }
 
+    /** PG 조회 상태를 확정으로 매핑한다(콜백·복구 공용). 확정 불가 상태(처리 중 등)는 무시. */
+    @Transactional
+    public void confirmFromGatewayStatus(String transactionKey, String gatewayStatus) {
+        if ("SUCCESS".equals(gatewayStatus)) {
+            confirm(transactionKey, true, null);
+        } else if ("FAILED".equals(gatewayStatus)) {
+            confirm(transactionKey, false, "PG 조회 결과 실패");
+        }
+    }
+
     @Transactional(readOnly = true)
     public PaymentModel getByOrderId(Long orderId) {
         return paymentRepository.findByOrderId(orderId)

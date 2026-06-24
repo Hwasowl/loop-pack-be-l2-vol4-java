@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,7 +63,7 @@ class PaymentRecoveryServiceTest {
 
             recoveryService.reconcilePending();
 
-            verify(paymentService).confirm("tx-1", true, null);
+            verify(paymentService).confirmFromGatewayStatus("tx-1", "SUCCESS");
         }
 
         @DisplayName("PG가 응답하지 않으면(empty) 확정하지 않고 다음 주기로 미룬다")
@@ -75,7 +74,7 @@ class PaymentRecoveryServiceTest {
 
             recoveryService.reconcilePending();
 
-            verify(paymentService, never()).confirm(any(), anyBoolean(), any());
+            verify(paymentService, never()).confirmFromGatewayStatus(any(), any());
         }
     }
 
@@ -92,7 +91,7 @@ class PaymentRecoveryServiceTest {
             recoveryService.recoverKeyless();
 
             verify(paymentService).assignTransactionKey(1L, "tx-2");
-            verify(paymentService).confirm("tx-2", true, null);
+            verify(paymentService).confirmFromGatewayStatus("tx-2", "SUCCESS");
         }
 
         @DisplayName("PG에 거래가 없으면(NOT_FOUND) 미접수로 보고 실패 처리(취소)한다")
@@ -104,7 +103,7 @@ class PaymentRecoveryServiceTest {
             recoveryService.recoverKeyless();
 
             verify(paymentService).failByOrderId(eq(1L), any());
-            verify(paymentService, never()).confirm(any(), anyBoolean(), any());
+            verify(paymentService, never()).confirmFromGatewayStatus(any(), any());
         }
 
         @DisplayName("PG 장애(UNREACHABLE)면 취소하지 않고 다음 주기로 미룬다")
@@ -116,7 +115,7 @@ class PaymentRecoveryServiceTest {
             recoveryService.recoverKeyless();
 
             verify(paymentService, never()).failByOrderId(any(), any());
-            verify(paymentService, never()).confirm(any(), anyBoolean(), any());
+            verify(paymentService, never()).confirmFromGatewayStatus(any(), any());
             verify(paymentService, never()).assignTransactionKey(any(), any());
         }
     }

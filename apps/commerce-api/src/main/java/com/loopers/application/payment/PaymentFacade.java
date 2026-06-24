@@ -51,13 +51,7 @@ public class PaymentFacade {
         }
         try {
             paymentGateway.queryStatus(transactionKey, payment.getUserId())
-                .ifPresent(status -> {
-                    if ("SUCCESS".equals(status)) {
-                        paymentService.confirm(transactionKey, true, null);
-                    } else if ("FAILED".equals(status)) {
-                        paymentService.confirm(transactionKey, false, "PG 조회 결과 실패");
-                    }
-                });
+                .ifPresent(status -> paymentService.confirmFromGatewayStatus(transactionKey, status));
         } catch (ObjectOptimisticLockingFailureException alreadyConfirmed) {
             // 콜백·복구가 동시에 확정 — 승자가 이미 반영했으므로 no-op
         }
