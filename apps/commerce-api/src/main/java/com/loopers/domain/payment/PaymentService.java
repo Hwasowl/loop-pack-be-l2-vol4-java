@@ -63,4 +63,10 @@ public class PaymentService {
         return paymentRepository.findByOrderId(orderId)
             .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[orderId = " + orderId + "] 결제를 찾을 수 없습니다."));
     }
+
+    @Transactional(readOnly = true)
+    public PaymentModel getByTransactionKey(String transactionKey) {
+        return paymentRepository.findByTransactionKey(transactionKey)
+            .orElseThrow(() -> new CoreException(ErrorType.NOT_FOUND, "[transactionKey = " + transactionKey + "] 결제를 찾을 수 없습니다."));
+    }
 }

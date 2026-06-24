@@ -9,6 +9,7 @@ import com.loopers.domain.payment.GatewayResult;
 import com.loopers.domain.payment.PaymentGateway;
 import com.loopers.domain.payment.PaymentModel;
 import com.loopers.domain.payment.PaymentService;
+import com.loopers.domain.payment.PaymentStatus;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
@@ -44,13 +45,24 @@ public class PaymentFacade {
         return PaymentInfo.from(paymentService.getByOrderId(orderId));
     }
 
-    /** PG 콜백 수신. PG 상태 문자열을 우리 확정으로 변환한다. PENDING 등 미확정 상태는 무시한다. */
-    public void handleCallback(String transactionKey, String pgStatus, String reason) {
-        if ("SUCCESS".equals(pgStatus)) {
-            paymentService.confirm(transactionKey, true, null);
-        } else if ("FAILED".equals(pgStatus)) {
-            paymentService.confirm(transactionKey, false, reason);
+    /**
+     * PG 콜백 수신. 콜백 본문은 위·변조될 수 있으므로 신뢰하지 않는다 —
+     * 콜백은 "확인 트리거"로만 쓰고, 실제 상태는 PG에 재조회(queryStatus)해 확정한다.
+     * PG가 응답하지 않으면 PENDING을 유지하고 복구 스케줄러가 사후 확정한다.
+     */
+    public void handleCallback(String transactionKey) {
+        PaymentModel payment = paymentService.getByTransactionKey(transactionKey);
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            return;
         }
+        paymentGateway.queryStatus(transactionKey, payment.getUserId())
+            .ifPresent(status -> {
+                if ("SUCCESS".equals(status)) {
+                    paymentService.confirm(transactionKey, true, null);
+                } else if ("FAILED".equals(status)) {
+                    paymentService.confirm(transactionKey, false, "PG 조회 결과 실패");
+                }
+            });
     }
 
     public PaymentInfo getStatus(Long userId, Long orderId) {
