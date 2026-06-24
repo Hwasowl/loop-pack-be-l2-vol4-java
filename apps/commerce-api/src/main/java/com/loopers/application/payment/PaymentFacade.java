@@ -15,10 +15,7 @@ import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * 결제 합성. PG 호출이 끼므로 Facade에 트랜잭션을 두지 않는다 — 각 Service 호출이 자기 트랜잭션이고,
- * PG 호출은 어떤 트랜잭션에도 들어가지 않는다.
- */
+/** PG 호출이 끼므로 Facade에 트랜잭션을 두지 않는다 — PG 호출이 락을 점유하지 않게 한다. */
 @RequiredArgsConstructor
 @Component
 public class PaymentFacade {
@@ -45,11 +42,7 @@ public class PaymentFacade {
         return PaymentInfo.from(paymentService.getByOrderId(orderId));
     }
 
-    /**
-     * PG 콜백 수신. 콜백 본문은 위·변조될 수 있으므로 신뢰하지 않는다 —
-     * 콜백은 "확인 트리거"로만 쓰고, 실제 상태는 PG에 재조회(queryStatus)해 확정한다.
-     * PG가 응답하지 않으면 PENDING을 유지하고 복구 스케줄러가 사후 확정한다.
-     */
+    /** 콜백 본문은 위·변조될 수 있어 신뢰하지 않는다 — 트리거로만 쓰고 실제 상태는 PG 재조회로 확정한다. */
     public void handleCallback(String transactionKey) {
         PaymentModel payment = paymentService.getByTransactionKey(transactionKey);
         if (payment.getStatus() != PaymentStatus.PENDING) {

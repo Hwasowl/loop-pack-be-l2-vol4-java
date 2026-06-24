@@ -27,10 +27,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-/**
- * 결제 확정 → 도메인 이벤트(AFTER_COMMIT) → 주문 반영까지 in-process 배선이 실제로 도는지 H2로 검증한다.
- * 트랜잭션을 걸지 않는다 — confirm()이 자기 트랜잭션으로 커밋되어야 AFTER_COMMIT 리스너가 발화하기 때문.
- */
+/** 테스트에 트랜잭션을 걸지 않는다 — confirm()이 커밋돼야 AFTER_COMMIT 리스너가 발화하기 때문. */
 @SpringBootTest
 class PaymentEventFlowIntegrationTest {
 

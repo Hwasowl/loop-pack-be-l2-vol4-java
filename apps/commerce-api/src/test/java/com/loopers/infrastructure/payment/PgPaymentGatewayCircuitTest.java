@@ -23,11 +23,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * PG 게이트웨이의 서킷 브레이커 동작 검증.
- * 실패율이 임계치(50%)를 "실제로" 넘을 때만 OPEN되는지, OPEN이면 PG 호출을 끊는지(fast-fail)를 본다.
- * 윈도우/임계치를 테스트용으로 작게 덮고, 재시도는 꺼서(호출:집계 1:1) 임계치 경계를 또렷이 본다.
- */
+/** 윈도우·임계치를 작게 덮고 재시도를 꺼(호출:집계 1:1) 서킷 OPEN 경계를 또렷이 검증한다. */
 @SpringBootTest
 @TestPropertySource(properties = {
     "resilience4j.circuitbreaker.instances.pgCircuit.sliding-window-type=COUNT_BASED",
@@ -61,7 +57,6 @@ class PgPaymentGatewayCircuitTest {
         circuit().reset();
     }
 
-    /** 앞에서부터 failCount건은 실패(예외), 이후는 성공(거래키 반환)하도록 스텁한다. */
     private void stubFailFirst(int failCount) {
         AtomicInteger calls = new AtomicInteger();
         when(pgClient.requestPayment(any())).thenAnswer(inv -> {

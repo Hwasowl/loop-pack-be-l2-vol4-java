@@ -34,7 +34,6 @@ public class PaymentV1Controller implements PaymentV1ApiSpec {
     @PostMapping("/callback")
     @Override
     public ApiResponse<Object> handleCallback(@RequestBody PaymentCallbackV1Request request) {
-        // 본문의 status/reason은 신뢰하지 않는다 — 거래키만 받아 PG 재조회로 확정한다.
         paymentFacade.handleCallback(request.transactionKey());
         return ApiResponse.success();
     }

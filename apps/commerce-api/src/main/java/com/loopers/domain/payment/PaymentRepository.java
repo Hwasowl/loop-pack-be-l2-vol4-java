@@ -14,6 +14,5 @@ public interface PaymentRepository {
 
     List<PaymentModel> findAllByStatus(PaymentStatus status);
 
-    /** 거래키 없이 cutoff 이전에 생성된 PENDING 결제 (요청 타임아웃 복구 대상). */
     List<PaymentModel> findKeylessPendingBefore(ZonedDateTime cutoff);
 }

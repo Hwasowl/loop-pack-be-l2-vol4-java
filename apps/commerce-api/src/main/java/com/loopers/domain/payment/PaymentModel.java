@@ -68,12 +68,10 @@ public class PaymentModel extends BaseEntity {
         this.status = PaymentStatus.PENDING;
     }
 
-    /** PG가 발급한 거래키를 연결한다. */
     public void assignTransactionKey(String transactionKey) {
         this.transactionKey = transactionKey;
     }
 
-    /** 결제 성공 확정. 이미 SUCCESS면 멱등 — 중복 콜백·폴링에 안전. */
     public void markSuccess() {
         if (this.status == PaymentStatus.SUCCESS) {
             return;
@@ -84,7 +82,6 @@ public class PaymentModel extends BaseEntity {
         this.status = PaymentStatus.SUCCESS;
     }
 
-    /** 결제 실패 확정. 이미 FAILED면 멱등. */
     public void markFailed(String reason) {
         if (this.status == PaymentStatus.FAILED) {
             return;

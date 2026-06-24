@@ -27,10 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-/**
- * 콜백 보안 — 콜백 본문(status)을 신뢰하지 않고, 실제 상태는 PG 재조회로만 확정하는지 검증한다.
- * handleCallback이 본문 status를 받지 않도록 시그니처가 바뀌어, 위조 콜백으로는 상태를 만들 수 없다.
- */
+/** 콜백 본문을 신뢰하지 않고 PG 재조회로만 상태를 확정하는지 검증한다(위조 콜백 방어). */
 @SpringBootTest
 class PaymentCallbackSecurityIntegrationTest {
 

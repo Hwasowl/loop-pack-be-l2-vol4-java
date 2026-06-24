@@ -1,6 +1,6 @@
 package com.loopers.infrastructure.payment;
 
-/** PG(pg-simulator) 결제 요청 본문. orderId는 6자 이상 문자열(zero-pad), amount는 정수. */
+/** orderId는 PG가 6자 이상 문자열을 요구하므로 zero-pad해 보낸다. */
 public record PgPaymentRequest(
     String orderId,
     String cardType,

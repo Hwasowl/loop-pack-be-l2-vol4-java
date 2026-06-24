@@ -5,10 +5,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 미확정(PENDING) 결제 복구 스케줄러.
- * ⚠️ 멀티 인스턴스에서는 단일 실행 보장이 필요하다(분산락/배치 모듈). 현재는 단일 실행 전제.
- */
+/** ⚠️ 멀티 인스턴스에서는 단일 실행 보장(분산락/배치)이 필요하다. 현재는 단일 실행 전제. */
 @Profile("!test")
 @RequiredArgsConstructor
 @Component

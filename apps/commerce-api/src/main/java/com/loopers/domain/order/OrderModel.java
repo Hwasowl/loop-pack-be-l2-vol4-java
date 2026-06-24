@@ -76,7 +76,6 @@ public class OrderModel extends BaseEntity {
         return Collections.unmodifiableList(items);
     }
 
-    /** 결제 성공 시 호출. 이미 PAID면 멱등 처리 — 중복 콜백·이벤트에 안전. */
     public void pay() {
         if (this.status == OrderStatus.PAID) {
             return;
@@ -87,7 +86,6 @@ public class OrderModel extends BaseEntity {
         this.status = OrderStatus.PAID;
     }
 
-    /** 결제 실패·보상 시 호출. 이미 CANCELED면 멱등 처리. */
     public void cancel() {
         if (this.status == OrderStatus.CANCELED) {
             return;
