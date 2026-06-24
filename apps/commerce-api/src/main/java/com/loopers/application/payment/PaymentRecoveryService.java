@@ -7,6 +7,7 @@ import com.loopers.domain.payment.PaymentRepository;
 import com.loopers.domain.payment.PaymentService;
 import com.loopers.domain.payment.PaymentStatus;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -37,8 +38,12 @@ public class PaymentRecoveryService {
             if (payment.getTransactionKey() == null) {
                 continue;
             }
-            paymentGateway.queryStatus(payment.getTransactionKey(), payment.getUserId())
-                .ifPresent(status -> reflect(payment.getTransactionKey(), status));
+            try {
+                paymentGateway.queryStatus(payment.getTransactionKey(), payment.getUserId())
+                    .ifPresent(status -> reflect(payment.getTransactionKey(), status));
+            } catch (ObjectOptimisticLockingFailureException alreadyConfirmed) {
+                // 콜백·다른 인스턴스가 동시에 확정 — no-op, 다음 건으로 진행
+            }
         }
     }
 
@@ -47,15 +52,19 @@ public class PaymentRecoveryService {
         ZonedDateTime cutoff = ZonedDateTime.now().minus(pendingTimeout);
         for (PaymentModel payment : paymentRepository.findKeylessPendingBefore(cutoff)) {
             GatewayLookup lookup = paymentGateway.queryByOrderId(payment.getOrderId(), payment.getUserId());
-            switch (lookup.result()) {
-                case FOUND -> {
-                    paymentService.assignTransactionKey(payment.getOrderId(), lookup.transactionKey());
-                    reflect(lookup.transactionKey(), lookup.status());
+            try {
+                switch (lookup.result()) {
+                    case FOUND -> {
+                        paymentService.assignTransactionKey(payment.getOrderId(), lookup.transactionKey());
+                        reflect(lookup.transactionKey(), lookup.status());
+                    }
+                    case NOT_FOUND -> paymentService.failByOrderId(payment.getOrderId(), "PG 미접수 (유예시간 경과)");
+                    case UNREACHABLE -> {
+                        // PG 장애로 거래 유무 불명 — 취소하지 않고 다음 주기에 재시도
+                    }
                 }
-                case NOT_FOUND -> paymentService.failByOrderId(payment.getOrderId(), "PG 미접수 (유예시간 경과)");
-                case UNREACHABLE -> {
-                    // PG 장애로 거래 유무 불명 — 취소하지 않고 다음 주기에 재시도
-                }
+            } catch (ObjectOptimisticLockingFailureException alreadyConfirmed) {
+                // 콜백·다른 인스턴스가 동시에 확정 — no-op, 다음 건으로 진행
             }
         }
     }

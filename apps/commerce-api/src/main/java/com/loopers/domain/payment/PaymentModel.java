@@ -12,6 +12,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 
 @Getter
@@ -45,6 +46,10 @@ public class PaymentModel extends BaseEntity {
 
     @Column(name = "reason")
     private String reason;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     protected PaymentModel() {}
 

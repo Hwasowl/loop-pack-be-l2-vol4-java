@@ -13,6 +13,7 @@ import com.loopers.domain.payment.PaymentStatus;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Component;
 
 /** PG 호출이 끼므로 Facade에 트랜잭션을 두지 않는다 — PG 호출이 락을 점유하지 않게 한다. */
@@ -48,14 +49,18 @@ public class PaymentFacade {
         if (payment.getStatus() != PaymentStatus.PENDING) {
             return;
         }
-        paymentGateway.queryStatus(transactionKey, payment.getUserId())
-            .ifPresent(status -> {
-                if ("SUCCESS".equals(status)) {
-                    paymentService.confirm(transactionKey, true, null);
-                } else if ("FAILED".equals(status)) {
-                    paymentService.confirm(transactionKey, false, "PG 조회 결과 실패");
-                }
-            });
+        try {
+            paymentGateway.queryStatus(transactionKey, payment.getUserId())
+                .ifPresent(status -> {
+                    if ("SUCCESS".equals(status)) {
+                        paymentService.confirm(transactionKey, true, null);
+                    } else if ("FAILED".equals(status)) {
+                        paymentService.confirm(transactionKey, false, "PG 조회 결과 실패");
+                    }
+                });
+        } catch (ObjectOptimisticLockingFailureException alreadyConfirmed) {
+            // 콜백·복구가 동시에 확정 — 승자가 이미 반영했으므로 no-op
+        }
     }
 
     public PaymentInfo getStatus(Long userId, Long orderId) {

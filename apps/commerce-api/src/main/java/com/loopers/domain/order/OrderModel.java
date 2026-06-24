@@ -13,6 +13,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 
 import java.util.ArrayList;
@@ -48,6 +49,10 @@ public class OrderModel extends BaseEntity {
 
     @OneToMany(mappedBy = "order", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private final List<OrderItem> items = new ArrayList<>();
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     protected OrderModel() {}
 
