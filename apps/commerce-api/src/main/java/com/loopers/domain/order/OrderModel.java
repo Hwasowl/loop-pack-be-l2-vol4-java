@@ -76,6 +76,28 @@ public class OrderModel extends BaseEntity {
         return Collections.unmodifiableList(items);
     }
 
+    /** 결제 성공 시 호출. 이미 PAID면 멱등 처리 — 중복 콜백·이벤트에 안전. */
+    public void pay() {
+        if (this.status == OrderStatus.PAID) {
+            return;
+        }
+        if (this.status != OrderStatus.CREATED) {
+            throw new CoreException(ErrorType.CONFLICT, "결제 확정할 수 없는 주문 상태입니다: " + this.status);
+        }
+        this.status = OrderStatus.PAID;
+    }
+
+    /** 결제 실패·보상 시 호출. 이미 CANCELED면 멱등 처리. */
+    public void cancel() {
+        if (this.status == OrderStatus.CANCELED) {
+            return;
+        }
+        if (this.status != OrderStatus.CREATED) {
+            throw new CoreException(ErrorType.CONFLICT, "취소할 수 없는 주문 상태입니다: " + this.status);
+        }
+        this.status = OrderStatus.CANCELED;
+    }
+
     private void addItem(OrderItem item) {
         this.items.add(item);
         item.assignTo(this);
