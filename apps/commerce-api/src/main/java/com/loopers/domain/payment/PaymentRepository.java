@@ -17,6 +17,4 @@ public interface PaymentRepository {
     List<PaymentModel> findKeylessPendingBefore(ZonedDateTime cutoff);
 
     List<PaymentModel> findStuckPending(ZonedDateTime cutoff);
-
-    List<PaymentModel> findSuccessfulSince(ZonedDateTime since);
 }
