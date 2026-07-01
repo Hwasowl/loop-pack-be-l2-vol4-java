@@ -28,4 +28,7 @@ dependencies {
     // test-fixtures
     testImplementation(testFixtures(project(":modules:jpa")))
     testImplementation(testFixtures(project(":modules:redis")))
+
+    // 임베디드 Kafka 배선 테스트 (order-events 발행→소비 검증)
+    testImplementation("org.springframework.kafka:spring-kafka-test")
 }
