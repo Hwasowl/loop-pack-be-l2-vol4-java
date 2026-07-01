@@ -47,14 +47,26 @@ public class ProductRepositoryImpl implements ProductRepository {
 
     @Override
     public Page<ProductModel> search(Long brandId, SortOption sort, Pageable pageable) {
+        // 좋아요순은 product_metrics 조인이 필요해 native로 분기한다.
+        if (sort == SortOption.LIKES_DESC) {
+            return productJpaRepository.searchOrderByLikes(brandId, pageable);
+        }
         Pageable sortedPageable = PageRequest.of(
             pageable.getPageNumber(), pageable.getPageSize(), toSort(sort)
         );
-
         // 옵티마이저가 인덱스를 명확히 타도록 쿼리를 분기한다. nullable 조건이 늘어나면 메서드가 2^N으로 증가하므로, QueryDSL 적용을 고려한다.
         return brandId == null
             ? productJpaRepository.findAllByDeletedAtIsNull(sortedPageable)
             : productJpaRepository.findAllByBrandIdAndDeletedAtIsNull(brandId, sortedPageable);
+    }
+
+    @Override
+    public Map<Long, Long> likeCountsByProductIds(Collection<Long> productIds) {
+        if (productIds.isEmpty()) {
+            return Map.of();
+        }
+        return productJpaRepository.findLikeCountsByProductIds(productIds).stream()
+            .collect(Collectors.toMap(row -> ((Number) row[0]).longValue(), row -> ((Number) row[1]).longValue()));
     }
 
     @Override
@@ -79,7 +91,7 @@ public class ProductRepositoryImpl implements ProductRepository {
         return switch (option) {
             case LATEST -> Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
             case PRICE_ASC -> Sort.by(Sort.Order.asc("price"), Sort.Order.asc("id"));
-            case LIKES_DESC -> Sort.by(Sort.Order.desc("likeCount"), Sort.Order.desc("id"));
+            case LIKES_DESC -> throw new IllegalStateException("LIKES_DESC는 native 정렬로 처리한다");
         };
     }
 }

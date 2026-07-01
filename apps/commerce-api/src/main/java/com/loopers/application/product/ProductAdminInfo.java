@@ -17,7 +17,7 @@ public record ProductAdminInfo(
     ZonedDateTime createdAt,
     ZonedDateTime updatedAt
 ) {
-    public static ProductAdminInfo from(ProductModel product, BrandModel brand, int stockQuantity) {
+    public static ProductAdminInfo from(ProductModel product, BrandModel brand, int stockQuantity, long likeCount) {
         return new ProductAdminInfo(
             product.getId(),
             product.getName(),
@@ -25,7 +25,7 @@ public record ProductAdminInfo(
             product.getPrice().value(),
             product.getBrandId(),
             brand.getName(),
-            product.getLikeCount(),
+            likeCount,
             stockQuantity,
             product.getCreatedAt(),
             product.getUpdatedAt()

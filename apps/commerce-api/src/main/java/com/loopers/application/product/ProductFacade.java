@@ -20,7 +20,7 @@ public class ProductFacade {
             ProductCacheKeys.detail(productId), ProductInfo.class, ProductCacheKeys.DETAIL_TTL,
             () -> {
                 ProductWithDeps c = reader.getDetail(productId);
-                return ProductInfo.from(c.product(), c.brand(), c.stockQuantity() > 0);
+                return ProductInfo.from(c.product(), c.brand(), c.stockQuantity() > 0, c.likeCount());
             });
     }
 
@@ -29,7 +29,7 @@ public class ProductFacade {
             ProductCacheKeys.list(brandId, sort, pageable), ProductListPage.class, ProductCacheKeys.LIST_TTL,
             () -> {
                 Page<ProductInfo> result = reader.search(brandId, sort, pageable)
-                    .map(c -> ProductInfo.from(c.product(), c.brand(), c.stockQuantity() > 0));
+                    .map(c -> ProductInfo.from(c.product(), c.brand(), c.stockQuantity() > 0, c.likeCount()));
                 return new ProductListPage(result.getContent(), result.getTotalElements());
             });
         return new PageImpl<>(page.content(), pageable, page.totalElements());

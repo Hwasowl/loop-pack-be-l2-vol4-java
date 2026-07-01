@@ -15,10 +15,8 @@ import lombok.Getter;
 @Getter
 @Entity
 @Table(name = "product", indexes = {
-    @Index(name = "idx_product_brand_like", columnList = "brand_id, like_count"),
     @Index(name = "idx_product_brand_price", columnList = "brand_id, price"),
     @Index(name = "idx_product_brand_created", columnList = "brand_id, created_at"),
-    @Index(name = "idx_product_like", columnList = "like_count"),
     @Index(name = "idx_product_price", columnList = "price"),
     @Index(name = "idx_product_created", columnList = "created_at")
 })
@@ -37,9 +35,6 @@ public class ProductModel extends BaseEntity {
     @Column(name = "price", nullable = false)
     private Money price;
 
-    @Column(name = "like_count", nullable = false)
-    private Long likeCount;
-
     protected ProductModel() {}
 
     public ProductModel(Long brandId, String name, String description, Long price) {
@@ -56,6 +51,5 @@ public class ProductModel extends BaseEntity {
         this.name = name;
         this.description = description;
         this.price = Money.of(price);
-        this.likeCount = 0L;
     }
 }

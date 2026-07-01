@@ -14,11 +14,11 @@ public class ProductAdminFacade {
 
     public ProductAdminInfo getProduct(Long productId) {
         ProductWithDeps c = reader.getDetail(productId);
-        return ProductAdminInfo.from(c.product(), c.brand(), c.stockQuantity());
+        return ProductAdminInfo.from(c.product(), c.brand(), c.stockQuantity(), c.likeCount());
     }
 
     public Page<ProductAdminInfo> search(Long brandId, SortOption sort, Pageable pageable) {
         return reader.search(brandId, sort, pageable)
-            .map(c -> ProductAdminInfo.from(c.product(), c.brand(), c.stockQuantity()));
+            .map(c -> ProductAdminInfo.from(c.product(), c.brand(), c.stockQuantity(), c.likeCount()));
     }
 }
