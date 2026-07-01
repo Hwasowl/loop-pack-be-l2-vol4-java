@@ -14,4 +14,7 @@ public final class KafkaTopics {
 
     /** 선착순 쿠폰 발급 요청. partition key = couponId */
     public static final String COUPON_ISSUE_REQUESTS = "coupon-issue-requests";
+
+    /** 유저 행동 로그(조회/좋아요/주문 등). 이 토픽 자체가 append-only 로그. partition key = userId */
+    public static final String USER_ACTIONS = "user-actions";
 }

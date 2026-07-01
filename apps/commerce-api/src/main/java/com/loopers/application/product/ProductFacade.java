@@ -1,6 +1,7 @@
 package com.loopers.application.product;
 
 import com.loopers.domain.product.ProductViewed;
+import com.loopers.domain.useraction.UserActionEvent;
 import com.loopers.support.cache.CacheStore;
 import com.loopers.domain.product.SortOption;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,8 @@ public class ProductFacade {
             });
         // 상세 조회가 성공한 뒤(존재하지 않으면 위에서 예외)에만 조회 이벤트를 발행한다.
         eventPublisher.publishEvent(ProductViewed.of(productId));
+        // 유저 행동 로그(부가) — 조회 상세는 인증이 없어 userId는 익명(null)이다.
+        eventPublisher.publishEvent(UserActionEvent.of(null, "PRODUCT_VIEW", productId));
         return info;
     }
 

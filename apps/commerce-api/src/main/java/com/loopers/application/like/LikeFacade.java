@@ -4,6 +4,7 @@ import com.loopers.domain.like.LikeService;
 import com.loopers.domain.like.ProductLiked;
 import com.loopers.domain.like.ProductUnliked;
 import com.loopers.domain.product.ProductService;
+import com.loopers.domain.useraction.UserActionEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,7 @@ public class LikeFacade {
         productService.requireExists(productId);
         if (likeService.like(userId, productId)) {
             eventPublisher.publishEvent(ProductLiked.of(productId, userId));
+            eventPublisher.publishEvent(UserActionEvent.of(userId, "LIKE", productId));
         }
     }
 
@@ -34,6 +36,7 @@ public class LikeFacade {
     public void unlike(Long userId, Long productId) {
         if (likeService.unlike(userId, productId)) {
             eventPublisher.publishEvent(ProductUnliked.of(productId, userId));
+            eventPublisher.publishEvent(UserActionEvent.of(userId, "UNLIKE", productId));
         } else {
             productService.requireExists(productId);
         }
