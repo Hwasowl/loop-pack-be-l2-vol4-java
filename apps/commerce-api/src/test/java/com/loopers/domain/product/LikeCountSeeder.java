@@ -19,9 +19,10 @@ public class LikeCountSeeder {
     }
 
     public void seed(Long productId, long likeCount) {
+        // 멱등 upsert — 공유 H2 인메모리라 이전 테스트가 남긴 행과 충돌하지 않도록 MERGE로 덮어쓴다.
         jdbcTemplate.update(
-            "INSERT INTO product_metrics (product_id, like_count, sales_count, view_count, updated_at) "
-                + "VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP)",
+            "MERGE INTO product_metrics (product_id, like_count, sales_count, view_count, updated_at) "
+                + "KEY(product_id) VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP)",
             productId, likeCount);
     }
 

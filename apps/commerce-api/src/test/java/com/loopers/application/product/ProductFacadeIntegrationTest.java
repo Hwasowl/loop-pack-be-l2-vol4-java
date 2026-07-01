@@ -1,5 +1,6 @@
 package com.loopers.application.product;
 
+import com.loopers.confg.kafka.KafkaTopics;
 import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.product.LikeCountSeeder;
@@ -8,6 +9,7 @@ import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.product.SortOption;
 import com.loopers.domain.stock.StockModel;
 import com.loopers.domain.stock.StockRepository;
+import com.loopers.infrastructure.like.CatalogEventPayload;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import com.loopers.utils.DatabaseCleanUp;
@@ -17,14 +19,20 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 /**
  * ProductFacade 통합 — 고객 노출 형태(available bool) 변환과 Product+Brand+Stock 합성을 검증한다.
@@ -54,6 +62,9 @@ class ProductFacadeIntegrationTest {
     @Autowired
     private LikeCountSeeder likeCountSeeder;
 
+    @MockitoBean
+    private KafkaTemplate<Object, Object> kafkaTemplate;
+
     private Long brandId;
     private Long inStockProductId;
     private Long outOfStockProductId;
@@ -78,6 +89,7 @@ class ProductFacadeIntegrationTest {
     void tearDown() {
         databaseCleanUp.truncateAllTables();
         redisCleanUp.truncateAll();
+        likeCountSeeder.clear();   // product_metrics는 비매핑이라 DatabaseCleanUp이 정리하지 못한다.
     }
 
     @DisplayName("상품 상세 조회 시")
@@ -120,6 +132,40 @@ class ProductFacadeIntegrationTest {
 
             // then
             assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
+        }
+    }
+
+    @DisplayName("조회 이벤트 발행 시")
+    @Nested
+    class ViewEvent {
+
+        @DisplayName("상세 조회에 성공하면 PRODUCT_VIEWED 이벤트가 key=productId로 catalog-events에 발행된다")
+        @Test
+        void publishesViewedEvent_onDetail() {
+            // when
+            productFacade.getProductDetail(inStockProductId);
+
+            // then - Facade → ApplicationEvent → @EventListener → KafkaTemplate 경로가 동기로 이어진다
+            ArgumentCaptor<Object> key = ArgumentCaptor.forClass(Object.class);
+            ArgumentCaptor<Object> payload = ArgumentCaptor.forClass(Object.class);
+            verify(kafkaTemplate).send(eq(KafkaTopics.CATALOG_EVENTS), key.capture(), payload.capture());
+            assertThat(key.getValue()).isEqualTo(inStockProductId.toString());
+            assertThat(payload.getValue()).isInstanceOf(CatalogEventPayload.class);
+            CatalogEventPayload sent = (CatalogEventPayload) payload.getValue();
+            assertAll(
+                () -> assertThat(sent.eventType()).isEqualTo("PRODUCT_VIEWED"),
+                () -> assertThat(sent.productId()).isEqualTo(inStockProductId)
+            );
+        }
+
+        @DisplayName("존재하지 않는 상품 조회는 예외로 끝나 조회 이벤트를 발행하지 않는다")
+        @Test
+        void doesNotPublish_whenProductMissing() {
+            // when
+            assertThrows(CoreException.class, () -> productFacade.getProductDetail(99_999L));
+
+            // then
+            verifyNoInteractions(kafkaTemplate);
         }
     }
 
