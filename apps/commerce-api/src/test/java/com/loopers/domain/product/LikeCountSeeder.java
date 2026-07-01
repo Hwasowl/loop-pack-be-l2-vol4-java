@@ -4,9 +4,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 /**
- * 테스트에서 product.like_count 컬럼을 직접 세팅한다.
- * <p>운영에선 좋아요 수 증감이 Redis로 흡수되고 배치가 컬럼에 반영하므로, 정렬·표시 테스트는
- * 그 경로를 우회해 컬럼을 네이티브 UPDATE로 시드한다. product 스키마를 알기에 product 도메인 테스트에 둔다.</p>
+ * 테스트에서 좋아요 수를 직접 시드한다.
+ * <p>운영에선 좋아요 이벤트를 commerce-streamer가 소비해 product_metrics.like_count에 집계하므로,
+ * 정렬·표시 테스트는 그 경로를 우회해 product_metrics에 네이티브로 시드한다.
+ * commerce-api는 product_metrics를 매핑하지 않으므로(DatabaseCleanUp이 정리 못 함) clear()를 별도로 제공한다.</p>
  */
 @Component
 public class LikeCountSeeder {
@@ -18,9 +19,13 @@ public class LikeCountSeeder {
     }
 
     public void seed(Long productId, long likeCount) {
-        int updated = jdbcTemplate.update("UPDATE product SET like_count = ? WHERE id = ?", likeCount, productId);
-        if (updated != 1) {
-            throw new IllegalStateException("like_count 시드 실패: productId=" + productId + " (영향 행 " + updated + ")");
-        }
+        jdbcTemplate.update(
+            "INSERT INTO product_metrics (product_id, like_count, sales_count, view_count, updated_at) "
+                + "VALUES (?, ?, 0, 0, CURRENT_TIMESTAMP)",
+            productId, likeCount);
+    }
+
+    public void clear() {
+        jdbcTemplate.update("DELETE FROM product_metrics");
     }
 }

@@ -53,6 +53,7 @@ class ProductServiceIntegrationTest {
     @AfterEach
     void tearDown() {
         databaseCleanUp.truncateAllTables();
+        likeCountSeeder.clear();   // product_metrics는 비매핑이라 DatabaseCleanUp이 정리하지 못한다.
     }
 
     @DisplayName("정렬 조회 시")
@@ -76,9 +77,9 @@ class ProductServiceIntegrationTest {
             // when
             Page<ProductModel> page = productService.search(brandId, SortOption.LIKES_DESC, PageRequest.of(0, 20));
 
-            // then
-            List<Long> likes = page.getContent().stream().map(ProductModel::getLikeCount).toList();
-            assertThat(likes).containsExactly(5L, 2L, 0L);
+            // then - 좋아요 5(후드) > 2(패딩) > 0(맨투맨) 순
+            List<String> names = page.getContent().stream().map(ProductModel::getName).toList();
+            assertThat(names).containsExactly("후드", "패딩", "맨투맨");
         }
 
         @DisplayName("latest 정렬은 생성 시간 내림차순으로 반환한다 (가장 최근에 저장된 것이 먼저)")
