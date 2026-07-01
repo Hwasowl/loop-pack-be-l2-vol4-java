@@ -7,7 +7,7 @@ import com.loopers.domain.outbox.OutboxEvent;
 import com.loopers.domain.outbox.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -21,7 +21,7 @@ import java.util.List;
  * ⚠️ 멀티 인스턴스에선 단일 실행 보장(분산락)이 필요하다. 현재는 단일 실행 전제(PaymentRecoveryScheduler와 동일).
  */
 @Slf4j
-@Profile("!test")
+@ConditionalOnProperty(name = "payment.order-consumer", havingValue = "kafka", matchIfMissing = true)
 @Component
 @RequiredArgsConstructor
 public class OutboxRelay {

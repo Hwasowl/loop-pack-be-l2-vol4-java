@@ -1,0 +1,4 @@
+# 테스트 기본은 in-process 결제 반영 경로 — 브로커 없이 H2로 빠르게 검증한다.
+# Kafka 배선 테스트만 @SpringBootTest(properties="payment.order-consumer=kafka")로 덮어써 켠다.
+payment:
+  order-consumer: in-process

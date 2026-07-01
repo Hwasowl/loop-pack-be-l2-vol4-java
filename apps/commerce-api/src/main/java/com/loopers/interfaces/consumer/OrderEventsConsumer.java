@@ -8,7 +8,7 @@ import com.loopers.domain.order.OrderEventMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
@@ -22,7 +22,7 @@ import java.util.List;
  * streamer의 기본 그룹과 섞이지 않도록 groupId를 명시한다.
  */
 @Slf4j
-@Profile("!test")
+@ConditionalOnProperty(name = "payment.order-consumer", havingValue = "kafka", matchIfMissing = true)
 @Component
 @RequiredArgsConstructor
 public class OrderEventsConsumer {
