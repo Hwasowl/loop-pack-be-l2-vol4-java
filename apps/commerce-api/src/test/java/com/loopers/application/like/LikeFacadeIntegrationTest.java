@@ -4,6 +4,7 @@ import com.loopers.domain.brand.BrandModel;
 import com.loopers.domain.brand.BrandRepository;
 import com.loopers.domain.product.ProductModel;
 import com.loopers.domain.product.ProductRepository;
+import com.loopers.domain.useraction.UserActionEvent;
 import com.loopers.infrastructure.like.LikeJpaRepository;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
@@ -17,6 +18,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -25,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * LikeFacade 통합 — Like 관계(product_like) 저장과 멱등/존재검증 흐름을 검증한다.
  * 좋아요 수 집계는 이벤트를 소비하는 commerce-streamer가 product_metrics에 반영하므로 여기서는 관계만 본다.
  */
+@RecordApplicationEvents
 @SpringBootTest
 class LikeFacadeIntegrationTest {
 
@@ -46,6 +50,9 @@ class LikeFacadeIntegrationTest {
     // 좋아요 이벤트 발행(Kafka)은 이 테스트 범위 밖 — 실제 브로커 의존을 끊는다.
     @MockitoBean
     private KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
 
     private Long userId;
     private Long productId;
@@ -80,6 +87,19 @@ class LikeFacadeIntegrationTest {
             likeFacade.like(userId, productId);
             likeFacade.like(userId, productId);
             assertThat(likeJpaRepository.count()).isEqualTo(1);
+        }
+
+        @DisplayName("새 좋아요면 유저 행동 로그(LIKE) 이벤트가 발행된다")
+        @Test
+        void publishesUserActionEvent_onNewLike() {
+            likeFacade.like(userId, productId);
+
+            long likeActions = applicationEvents.stream(UserActionEvent.class)
+                .filter(e -> "LIKE".equals(e.action())
+                    && productId.equals(e.targetId())
+                    && userId.equals(e.userId()))
+                .count();
+            assertThat(likeActions).isEqualTo(1);
         }
 
         @DisplayName("존재하지 않는 상품에 좋아요하면 NOT_FOUND가 발생하고 like row도 생기지 않는다")
