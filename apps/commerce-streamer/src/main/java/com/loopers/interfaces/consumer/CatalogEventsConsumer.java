@@ -36,7 +36,13 @@ public class CatalogEventsConsumer {
             if (event == null) {
                 continue;
             }
-            productMetricsService.applyLike(event.eventId(), event.eventType(), event.productId());
+            switch (event.eventType()) {
+                case "PRODUCT_LIKED", "PRODUCT_UNLIKED" ->
+                        productMetricsService.applyLike(event.eventId(), event.eventType(), event.productId());
+                case "PRODUCT_VIEWED" ->
+                        productMetricsService.applyView(event.productId());
+                default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
+            }
         }
         acknowledgment.acknowledge();
     }

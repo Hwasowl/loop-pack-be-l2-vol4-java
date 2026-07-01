@@ -40,4 +40,17 @@ public class ProductMetricsService {
         }
         eventHandledRepository.save(new EventHandled(eventId));
     }
+
+    /**
+     * 조회 이벤트를 소비해 view_count를 1 증가시킨다.
+     * 조회 수는 인기 지표라 소량의 중복 집계를 허용한다 — 매 조회 eventId를 event_handled에 남기면
+     * (조회량 ≫ 좋아요량) 그 테이블이 폭증하므로 멱등 처리를 생략한다(at-least-once 근사 집계).
+     */
+    @Transactional
+    public void applyView(Long productId) {
+        ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
+                .orElseGet(() -> ProductMetrics.init(productId));
+        metrics.addView(1L);
+        productMetricsRepository.save(metrics);
+    }
 }

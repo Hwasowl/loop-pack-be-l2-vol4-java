@@ -51,6 +51,11 @@ public class ProductMetrics {
         this.likeCount = Math.max(0, this.likeCount + delta);
     }
 
+    /** 조회 수 증가. */
+    public void addView(long delta) {
+        this.viewCount = Math.max(0, this.viewCount + delta);
+    }
+
     @PrePersist
     @PreUpdate
     void touch() {
