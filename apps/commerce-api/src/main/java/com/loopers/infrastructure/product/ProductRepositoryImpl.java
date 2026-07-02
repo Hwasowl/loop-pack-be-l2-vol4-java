@@ -49,7 +49,10 @@ public class ProductRepositoryImpl implements ProductRepository {
     public Page<ProductModel> search(Long brandId, SortOption sort, Pageable pageable) {
         // 좋아요순은 product_metrics 조인이 필요해 native로 분기한다.
         if (sort == SortOption.LIKES_DESC) {
-            return productJpaRepository.searchOrderByLikes(brandId, pageable);
+            // native 쿼리가 자체 ORDER BY를 가지므로, 유입된 Sort(컨트롤러 sort 파라미터가 Pageable에도 바인딩됨)를
+            // 붙이면 SQL이 깨진다. page/size만 넘겨 정렬은 SQL이 단독으로 책임진다.
+            return productJpaRepository.searchOrderByLikes(brandId,
+                PageRequest.of(pageable.getPageNumber(), pageable.getPageSize()));
         }
         Pageable sortedPageable = PageRequest.of(
             pageable.getPageNumber(), pageable.getPageSize(), toSort(sort)
