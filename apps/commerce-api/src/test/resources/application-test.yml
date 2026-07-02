@@ -2,3 +2,7 @@
 # Kafka 배선 테스트만 @SpringBootTest(properties="payment.order-consumer=kafka")로 덮어써 켠다.
 payment:
   order-consumer: in-process
+
+# 선착순 쿠폰 컨슈머도 기본은 끔 — @EmbeddedKafka 배선 테스트만 coupon.issue-consumer=kafka로 켠다.
+coupon:
+  issue-consumer: off
