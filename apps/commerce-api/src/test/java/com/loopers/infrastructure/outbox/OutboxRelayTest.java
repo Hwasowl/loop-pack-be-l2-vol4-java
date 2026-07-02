@@ -99,5 +99,7 @@ class OutboxRelayTest {
         // then - 포이즌은 DLQ로, 정상 행만 발행(포이즌이 뒤 행을 막지 않음)
         verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), eq("not-json"), any());
         verify(kafkaTemplate, times(1)).send(anyString(), any(), any());
+        // 포이즌도 DLQ 격리 후 발행완료로 표시된다 — 발행(send)은 1건뿐인데 표시는 2건(포이즌+정상)
+        verify(outboxRepository, times(2)).markPublished(anyLong());
     }
 }
