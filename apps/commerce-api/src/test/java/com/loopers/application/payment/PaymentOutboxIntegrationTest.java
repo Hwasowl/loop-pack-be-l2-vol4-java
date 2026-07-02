@@ -16,6 +16,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
 
@@ -41,6 +43,9 @@ class PaymentOutboxIntegrationTest {
     private OutboxJpaRepository outboxJpaRepository;
     @Autowired
     private DatabaseCleanUp databaseCleanUp;
+    // 결제 성공 시 판매 이벤트 발행(ProductSoldEventPublisher)이 실제 브로커로 나가지 않게 격리한다.
+    @MockitoBean
+    private KafkaTemplate<Object, Object> kafkaTemplate;
 
     @AfterEach
     void tearDown() {
