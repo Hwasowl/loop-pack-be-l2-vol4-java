@@ -53,4 +53,20 @@ public class ProductMetricsService {
         metrics.addView(1L);
         productMetricsRepository.save(metrics);
     }
+
+    /**
+     * 판매 이벤트를 소비해 product_metrics.sales_count에 수량을 더한다.
+     * 판매량은 조회와 달리 이중집계에 민감하므로 eventId(주문 라인 기반 결정적 키)로 멱등 처리한다.
+     */
+    @Transactional
+    public void applySold(String eventId, Long productId, int quantity) {
+        if (eventHandledRepository.existsByEventId(eventId)) {
+            return;
+        }
+        ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
+                .orElseGet(() -> ProductMetrics.init(productId));
+        metrics.addSales(quantity);
+        productMetricsRepository.save(metrics);
+        eventHandledRepository.save(new EventHandled(eventId));
+    }
 }

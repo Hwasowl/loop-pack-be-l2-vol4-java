@@ -9,6 +9,7 @@ public record CatalogEvent(
         String eventType,
         Long productId,
         Long userId,
-        String occurredAt
+        String occurredAt,
+        Integer quantity
 ) {
 }

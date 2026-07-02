@@ -41,6 +41,8 @@ public class CatalogEventsConsumer {
                         productMetricsService.applyLike(event.eventId(), event.eventType(), event.productId());
                 case "PRODUCT_VIEWED" ->
                         productMetricsService.applyView(event.productId());
+                case "PRODUCT_SOLD" ->
+                        productMetricsService.applySold(event.eventId(), event.productId(), event.quantity());
                 default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
             }
         }

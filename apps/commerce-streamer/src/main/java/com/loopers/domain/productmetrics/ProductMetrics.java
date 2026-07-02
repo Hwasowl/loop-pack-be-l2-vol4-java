@@ -56,6 +56,11 @@ public class ProductMetrics {
         this.viewCount = Math.max(0, this.viewCount + delta);
     }
 
+    /** 판매 수량 증가. */
+    public void addSales(long delta) {
+        this.salesCount = Math.max(0, this.salesCount + delta);
+    }
+
     @PrePersist
     @PreUpdate
     void touch() {
