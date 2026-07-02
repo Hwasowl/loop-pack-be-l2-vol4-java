@@ -7,11 +7,13 @@ import com.loopers.interfaces.api.auth.LoginUser;
 import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -28,6 +30,14 @@ public class CouponV1Controller implements CouponV1ApiSpec {
     @Override
     public ApiResponse<IssueCouponV1Response> issue(@LoginUser AuthUser authUser, @PathVariable Long couponId) {
         return ApiResponse.success(IssueCouponV1Response.from(couponFacade.issue(authUser.id(), couponId)));
+    }
+
+    @PostMapping("/coupons/{templateId}/issue-requests")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Override
+    public ApiResponse<Object> requestIssue(@LoginUser AuthUser authUser, @PathVariable Long templateId) {
+        couponFacade.requestIssue(authUser.id(), templateId);
+        return ApiResponse.success();
     }
 
     @GetMapping("/users/me/coupons")

@@ -20,6 +20,12 @@ public interface CouponV1ApiSpec {
     ApiResponse<IssueCouponV1Response> issue(AuthUser authUser, @Positive Long couponId);
 
     @Operation(
+        summary = "선착순 쿠폰 발급 요청",
+        description = "발급 요청을 접수(202)만 하고 실제 발급은 비동기로 순차 처리됩니다. 발급 여부는 '내 쿠폰 목록'에서 확인하세요."
+    )
+    ApiResponse<Object> requestIssue(AuthUser authUser, @Positive Long templateId);
+
+    @Operation(
         summary = "내 쿠폰 목록 조회",
         description = "발급받은 쿠폰을 상태(AVAILABLE/USED/EXPIRED)와 함께 조회합니다."
     )
