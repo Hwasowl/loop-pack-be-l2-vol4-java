@@ -33,27 +33,27 @@ POST {{host}}/api/v1/users
 Content-Type: application/json
 
 {
-  "loginId": "tester1",
-  "password": "password123!",
-  "email": "tester1@loopers.com",
-  "birth": "1995-01-01",
-  "gender": "MALE"
+  "loginId": "loopers001",
+  "password": "Password123!",
+  "name": "테스터",
+  "birthDate": "1995-01-01",
+  "email": "loopers001@loopers.com"
 }
 
 ### 4) [유저] 선착순 발급 요청 — 즉시 202. 실제 발급은 컨슈머가 비동기로 처리
 POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
-X-Loopers-LoginId: tester1
-X-Loopers-LoginPw: password123!
+X-Loopers-LoginId: loopers001
+X-Loopers-LoginPw: Password123!
 
 ### 5) [유저] 내 쿠폰함 — 잠시 후 조회하면 발급된 쿠폰이 보인다("쿠폰함에서 확인")
 GET {{host}}/api/v1/users/me/coupons
-X-Loopers-LoginId: tester1
-X-Loopers-LoginPw: password123!
+X-Loopers-LoginId: loopers001
+X-Loopers-LoginPw: Password123!
 
 ### 6) [유저] 같은 템플릿 재요청 — 1인 1매라 두 번째는 발급되지 않는다(쿠폰함 그대로)
 POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
-X-Loopers-LoginId: tester1
-X-Loopers-LoginPw: password123!
+X-Loopers-LoginId: loopers001
+X-Loopers-LoginPw: Password123!
 
 ### ── 선착순 "한도 초과" 는 유저 여러 명이 필요하다 ──
 ### HTTP로 20명 인증은 번거로우니, 동시 몰림(한도 3 vs 20명)은 아래 스크립트로 본다:
