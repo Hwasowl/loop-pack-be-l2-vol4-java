@@ -79,8 +79,9 @@ class OutboxRelayTest {
         // when
         relay.relay();
 
-        // then
+        // then - 표시하지 않고, 첫 실패에서 중단해 둘째 행은 발행 시도조차 안 한다(순서 보장)
         verify(outboxRepository, never()).markPublished(anyLong());
+        verify(kafkaTemplate, times(1)).send(anyString(), any(), any());
     }
 
     @DisplayName("역직렬화 실패(포이즌) 행은 DLQ로 격리하고, 뒤의 정상 행은 계속 발행한다")

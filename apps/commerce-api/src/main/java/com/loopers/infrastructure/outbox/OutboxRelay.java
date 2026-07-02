@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 아웃박스 릴레이 — 미발행 outbox 행을 폴링해 order-events로 발행하고 published로 표시한다.
@@ -50,7 +51,8 @@ public class OutboxRelay {
             }
             try {
                 // 브로커 ack까지 대기 — 발행 성공을 확인한 뒤에만 published로 표시한다.
-                kafkaTemplate.send(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), message).get();
+                // 무한 대기 방지 — 브로커가 응답 없으면 스케줄러 스레드가 묶이지 않도록 타임아웃을 둔다.
+                kafkaTemplate.send(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), message).get(5, TimeUnit.SECONDS);
                 outboxRepository.markPublished(event.getId());
             } catch (Exception e) {
                 // 일시적 발행 실패(브로커 다운 등) → 표시 안 함. 순서 보존 위해 이번 배치는 중단, 다음 폴링에서 재시도.
