@@ -30,8 +30,13 @@ public class DlqPublisher {
         String dlqTopic = KafkaTopics.dlq(originalTopic);
         DlqMessage message = new DlqMessage(originalTopic, key, payload, cause.getMessage());
         try {
-            kafkaTemplate.send(dlqTopic, key, message);
-            log.warn("[DLQ] {} → {} (key={}): {}", originalTopic, dlqTopic, key, cause.getMessage());
+            kafkaTemplate.send(dlqTopic, key, message).whenComplete((result, ex) -> {
+                if (ex == null) {
+                    log.warn("[DLQ] {} → {} (key={}): {}", originalTopic, dlqTopic, key, cause.getMessage());
+                } else {
+                    log.error("[DLQ] 비동기 발행 실패 topic={} key={}: {}", dlqTopic, key, ex.getMessage());
+                }
+            });
         } catch (Exception e) {
             // DLQ 발행마저 실패하면 원본 메시지는 로그로만 남긴다(무한 재시도로 파티션을 막지 않는다).
             log.error("[DLQ] 발행 실패 topic={} key={}: {} / 원본: {}", dlqTopic, key, e.getMessage(), payload);

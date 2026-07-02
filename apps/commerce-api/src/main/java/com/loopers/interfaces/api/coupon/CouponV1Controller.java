@@ -38,7 +38,7 @@ public class CouponV1Controller implements CouponV1ApiSpec {
     @Override
     public ApiResponse<CouponIssueStatusV1Response> requestIssue(@LoginUser AuthUser authUser, @PathVariable Long templateId) {
         String requestId = couponFacade.requestIssue(authUser.id(), templateId);
-        return ApiResponse.success(new CouponIssueStatusV1Response(requestId, "PENDING"));
+        return ApiResponse.success(new CouponIssueStatusV1Response(requestId, CouponFacade.PENDING_STATUS));
     }
 
     @GetMapping("/coupons/issue-requests/{requestId}")

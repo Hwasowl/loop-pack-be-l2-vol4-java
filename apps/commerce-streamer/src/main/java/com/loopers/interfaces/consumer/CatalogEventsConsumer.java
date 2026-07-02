@@ -39,9 +39,13 @@ public class CatalogEventsConsumer {
             try {
                 CatalogEvent event = objectMapper.readValue((byte[]) record.value(), CatalogEvent.class);
                 switch (event.eventType()) {
-                    case "PRODUCT_LIKE_COUNT_CHANGED" ->
-                            productMetricsService.applyLikeSnapshot(
-                                    event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
+                    case "PRODUCT_LIKE_COUNT_CHANGED" -> {
+                        if (event.likeCount() == null) {
+                            throw new IllegalArgumentException("likeCount 없는 좋아요 스냅샷 이벤트: eventId=" + event.eventId());
+                        }
+                        productMetricsService.applyLikeSnapshot(
+                                event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
+                    }
                     case "PRODUCT_VIEWED" ->
                             productMetricsService.applyView(event.productId());
                     case "PRODUCT_SOLD" ->

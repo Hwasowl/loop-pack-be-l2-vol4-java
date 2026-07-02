@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
@@ -23,6 +24,7 @@ public class ProductViewEventPublisher {
 
     private final KafkaTemplate<Object, Object> kafkaTemplate;
 
+    @Async
     @EventListener
     public void on(ProductViewed event) {
         CatalogEventPayload payload = new CatalogEventPayload(

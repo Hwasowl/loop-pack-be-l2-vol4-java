@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -71,8 +72,9 @@ class ProductSoldEventPublisherIntegrationTest {
         paymentService.confirm("tx-sold", true, null);
 
         // then - 상품 2건에 대해 각각 발행되고, 타입/수량/키가 상품별로 맞다
+        // 발행은 @Async라 다른 스레드에서 일어나므로 timeout으로 완료를 기다린다.
         ArgumentCaptor<Object> valueCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate, times(2)).send(eq(KafkaTopics.CATALOG_EVENTS), any(), valueCaptor.capture());
+        verify(kafkaTemplate, timeout(3000).times(2)).send(eq(KafkaTopics.CATALOG_EVENTS), any(), valueCaptor.capture());
 
         List<CatalogEventPayload> payloads = valueCaptor.getAllValues().stream()
             .map(CatalogEventPayload.class::cast)

@@ -38,6 +38,12 @@ public class CouponIssueRequest extends BaseEntity {
         if (requestId == null || requestId.isBlank()) {
             throw new CoreException(ErrorType.BAD_REQUEST, "요청 ID는 비어있을 수 없습니다.");
         }
+        if (userId == null) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "유저 ID는 비어있을 수 없습니다.");
+        }
+        if (couponTemplateId == null) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "쿠폰 템플릿 ID는 비어있을 수 없습니다.");
+        }
         this.requestId = requestId;
         this.userId = userId;
         this.couponTemplateId = couponTemplateId;

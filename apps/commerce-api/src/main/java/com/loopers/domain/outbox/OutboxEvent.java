@@ -3,6 +3,7 @@ package com.loopers.domain.outbox;
 import com.loopers.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Getter;
 
@@ -14,7 +15,7 @@ import java.time.ZonedDateTime;
  */
 @Getter
 @Entity
-@Table(name = "outbox")
+@Table(name = "outbox", indexes = @Index(name = "idx_outbox_unpublished", columnList = "published_at, id"))
 public class OutboxEvent extends BaseEntity {
 
     /** 파티션 키로 쓰는 애그리거트 식별자 (order-events는 orderId). */

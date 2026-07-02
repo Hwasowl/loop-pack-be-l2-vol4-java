@@ -16,6 +16,9 @@ import java.util.UUID;
 @Component
 public class CouponFacade {
 
+    /** 발급 결과가 아직 확정되지 않은 상태값(요청 접수 후 처리 전). */
+    public static final String PENDING_STATUS = "PENDING";
+
     private final CouponService couponService;
     private final CouponIssueRequestSender couponIssueRequestSender;
 
@@ -42,7 +45,7 @@ public class CouponFacade {
     public String getIssueStatus(String requestId) {
         return couponService.getRequestOutcome(requestId)
             .map(Enum::name)
-            .orElse("PENDING");
+            .orElse(PENDING_STATUS);
     }
 
     public List<MyCouponInfo> getMyCoupons(Long userId) {

@@ -8,6 +8,7 @@ import com.loopers.infrastructure.like.CatalogEventPayload;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,7 @@ public class ProductSoldEventPublisher {
     private final OrderRepository orderRepository;
     private final KafkaTemplate<Object, Object> kafkaTemplate;
 
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public void on(PaymentCompleted event) {
