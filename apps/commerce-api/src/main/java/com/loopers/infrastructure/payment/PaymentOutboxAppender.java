@@ -3,6 +3,7 @@ package com.loopers.infrastructure.payment;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.domain.order.OrderEventMessage;
+import com.loopers.domain.order.OrderEventType;
 import com.loopers.domain.outbox.OutboxEvent;
 import com.loopers.domain.outbox.OutboxRepository;
 import com.loopers.domain.payment.PaymentCompleted;
@@ -20,27 +21,24 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PaymentOutboxAppender {
 
-    static final String TYPE_COMPLETED = "PAYMENT_COMPLETED";
-    static final String TYPE_FAILED = "PAYMENT_FAILED";
-
     private final OutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
     @EventListener
     public void on(PaymentCompleted event) {
-        append(TYPE_COMPLETED, event.orderId());
+        append(OrderEventType.PAYMENT_COMPLETED, event.orderId());
     }
 
     @EventListener
     public void on(PaymentFailed event) {
-        append(TYPE_FAILED, event.orderId());
+        append(OrderEventType.PAYMENT_FAILED, event.orderId());
     }
 
-    private void append(String eventType, Long orderId) {
-        outboxRepository.save(new OutboxEvent(orderId, eventType, serialize(eventType, orderId)));
+    private void append(OrderEventType eventType, Long orderId) {
+        outboxRepository.save(new OutboxEvent(orderId, eventType.name(), serialize(eventType, orderId)));
     }
 
-    private String serialize(String eventType, Long orderId) {
+    private String serialize(OrderEventType eventType, Long orderId) {
         try {
             return objectMapper.writeValueAsString(new OrderEventMessage(eventType, orderId));
         } catch (JsonProcessingException e) {

@@ -42,9 +42,8 @@ public class OrderEventsConsumer {
             try {
                 OrderEventMessage event = objectMapper.readValue((byte[]) record.value(), OrderEventMessage.class);
                 switch (event.eventType()) {
-                    case "PAYMENT_COMPLETED" -> handler.onPaid(event.orderId());
-                    case "PAYMENT_FAILED" -> handler.onFailed(event.orderId());
-                    default -> log.warn("알 수 없는 order 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
+                    case PAYMENT_COMPLETED -> handler.onPaid(event.orderId());
+                    case PAYMENT_FAILED -> handler.onFailed(event.orderId());
                 }
             } catch (Exception e) {
                 // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.

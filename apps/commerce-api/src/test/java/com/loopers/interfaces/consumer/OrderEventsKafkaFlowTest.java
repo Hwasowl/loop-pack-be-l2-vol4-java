@@ -7,6 +7,7 @@ import com.loopers.domain.coupon.CouponStatus;
 import com.loopers.domain.coupon.IssuedCoupon;
 import com.loopers.domain.coupon.IssuedCouponRepository;
 import com.loopers.domain.order.OrderEventMessage;
+import com.loopers.domain.order.OrderEventType;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderRepository;
@@ -65,10 +66,10 @@ class OrderEventsKafkaFlowTest {
         databaseCleanUp.truncateAllTables();
     }
 
-    private void appendOutbox(String eventType, Long orderId) {
+    private void appendOutbox(OrderEventType eventType, Long orderId) {
         try {
             String payload = objectMapper.writeValueAsString(new OrderEventMessage(eventType, orderId));
-            outboxRepository.save(new OutboxEvent(orderId, eventType, payload));
+            outboxRepository.save(new OutboxEvent(orderId, eventType.name(), payload));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException(e);
         }
@@ -97,7 +98,7 @@ class OrderEventsKafkaFlowTest {
         // given
         OrderModel order = orderRepository.save(
             new OrderModel(USER_ID, List.of(new OrderItem(100L, "상품", 1_000L, 1)), null, Money.ZERO));
-        appendOutbox("PAYMENT_COMPLETED", order.getId());
+        appendOutbox(OrderEventType.PAYMENT_COMPLETED, order.getId());
 
         // when — 릴레이가 실제(임베디드) 브로커로 발행
         outboxRelay.relay();
@@ -117,7 +118,7 @@ class OrderEventsKafkaFlowTest {
         issuedCouponRepository.save(coupon);
         OrderModel order = orderRepository.save(
             new OrderModel(USER_ID, List.of(new OrderItem(100L, "상품", 1_000L, 2)), coupon.getId(), Money.of(500L)));
-        appendOutbox("PAYMENT_FAILED", order.getId());
+        appendOutbox(OrderEventType.PAYMENT_FAILED, order.getId());
 
         // when
         outboxRelay.relay();
