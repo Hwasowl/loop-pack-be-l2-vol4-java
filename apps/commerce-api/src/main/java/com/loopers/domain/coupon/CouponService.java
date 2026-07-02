@@ -31,6 +31,31 @@ public class CouponService {
         return issuedCouponRepository.save(new IssuedCoupon(userId, couponTemplateId));
     }
 
+    /**
+     * 선착순 발급 요청을 처리한다(Kafka 컨슈머가 호출). 비동기라 예외 대신 결과 값을 반환한다.
+     * 정합성: 1인 1매(존재검사) + 수량 한도(조건부 원자 UPDATE). 같은 트랜잭션에서 수량 증가와
+     * 발급 저장을 묶어, 저장 실패 시 수량 증가도 함께 롤백된다.
+     * 재전달돼도 존재검사가 DUPLICATE로 잡아 멱등하다(별도 인박스 불필요).
+     */
+    @Transactional
+    public CouponIssueOutcome issueByRequest(Long userId, Long couponTemplateId) {
+        CouponTemplate template = couponTemplateRepository.findById(couponTemplateId).orElse(null);
+        if (template == null) {
+            return CouponIssueOutcome.NOT_FOUND;
+        }
+        if (template.isExpired(ZonedDateTime.now())) {
+            return CouponIssueOutcome.EXPIRED;
+        }
+        if (issuedCouponRepository.existsByUserIdAndCouponTemplateId(userId, couponTemplateId)) {
+            return CouponIssueOutcome.DUPLICATE;
+        }
+        if (template.hasQuantityLimit() && couponTemplateRepository.increaseIssuedIfAvailable(couponTemplateId) == 0) {
+            return CouponIssueOutcome.SOLD_OUT;
+        }
+        issuedCouponRepository.save(new IssuedCoupon(userId, couponTemplateId));
+        return CouponIssueOutcome.ISSUED;
+    }
+
     @Transactional(readOnly = true)
     public List<IssuedCoupon> getMyCoupons(Long userId) {
         return issuedCouponRepository.findAllByUserId(userId);

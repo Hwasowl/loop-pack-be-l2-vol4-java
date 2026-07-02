@@ -39,10 +39,27 @@ public class CouponTemplate extends BaseEntity {
     @Column(name = "expired_at", nullable = false)
     private ZonedDateTime expiredAt;
 
+    /** 선착순 발급 수량 한도. null이면 무제한(기존 동작). */
+    @Column(name = "total_quantity")
+    private Integer totalQuantity;
+
+    /** 지금까지 발급된 수량. 선착순 컨슈머가 조건부 UPDATE로 원자적으로 증가시킨다. */
+    @Column(name = "issued_quantity", nullable = false)
+    private int issuedQuantity;
+
     protected CouponTemplate() {}
 
     public CouponTemplate(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt) {
+        this(name, type, discountValue, minOrderAmount, expiredAt, null);
+    }
+
+    /** 선착순 한정 수량 템플릿 생성. totalQuantity가 null이면 무제한이다. */
+    public CouponTemplate(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt, Integer totalQuantity) {
         apply(name, type, discountValue, minOrderAmount, expiredAt);
+        if (totalQuantity != null && totalQuantity <= 0) {
+            throw new CoreException(ErrorType.BAD_REQUEST, "발급 수량은 1개 이상이어야 합니다.");
+        }
+        this.totalQuantity = totalQuantity;
     }
 
     /** 템플릿 내용을 갱신한다(어드민 수정). 생성과 동일한 불변식을 적용한다. */
@@ -75,6 +92,11 @@ public class CouponTemplate extends BaseEntity {
 
     public boolean isExpired(ZonedDateTime at) {
         return !at.isBefore(expiredAt);
+    }
+
+    /** 선착순 수량 한도가 있는 템플릿인지. 없으면 무제한 발급이다. */
+    public boolean hasQuantityLimit() {
+        return totalQuantity != null;
     }
 
     /** 할인액을 계산한다. 최소 주문 금액·만료 검증은 호출 측 책임이다. */

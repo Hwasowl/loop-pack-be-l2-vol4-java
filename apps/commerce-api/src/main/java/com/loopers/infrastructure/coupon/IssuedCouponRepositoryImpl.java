@@ -40,4 +40,9 @@ public class IssuedCouponRepositoryImpl implements IssuedCouponRepository {
     public boolean existsByCouponTemplateId(Long couponTemplateId) {
         return issuedCouponJpaRepository.existsByCouponTemplateId(couponTemplateId);
     }
+
+    @Override
+    public boolean existsByUserIdAndCouponTemplateId(Long userId, Long couponTemplateId) {
+        return issuedCouponJpaRepository.existsByUserIdAndCouponTemplateId(userId, couponTemplateId);
+    }
 }
