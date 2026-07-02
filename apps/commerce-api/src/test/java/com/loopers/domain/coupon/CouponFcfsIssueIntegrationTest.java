@@ -64,7 +64,7 @@ class CouponFcfsIssueIntegrationTest {
             executor.submit(() -> {
                 try {
                     startGate.await();
-                    CouponIssueOutcome outcome = couponService.issueByRequest(userId, templateId);
+                    CouponIssueOutcome outcome = couponService.issueByRequest("req-user-" + userId, userId, templateId);
                     if (outcome == CouponIssueOutcome.ISSUED) {
                         issued.incrementAndGet();
                     } else if (outcome == CouponIssueOutcome.SOLD_OUT) {
@@ -101,8 +101,8 @@ class CouponFcfsIssueIntegrationTest {
         void returnsDuplicate_whenSameUserRequestsTwice() {
             Long templateId = limitedTemplate(10).getId();
 
-            CouponIssueOutcome first = couponService.issueByRequest(1L, templateId);
-            CouponIssueOutcome second = couponService.issueByRequest(1L, templateId);
+            CouponIssueOutcome first = couponService.issueByRequest("req-1", 1L, templateId);
+            CouponIssueOutcome second = couponService.issueByRequest("req-2", 1L, templateId);
 
             assertAll(
                 () -> assertThat(first).isEqualTo(CouponIssueOutcome.ISSUED),
@@ -118,10 +118,26 @@ class CouponFcfsIssueIntegrationTest {
             CouponTemplate expired = couponTemplateRepository.save(new CouponTemplate(
                 "만료", CouponType.FIXED, 1_000L, null, ZonedDateTime.now().minusDays(1), 10));
 
-            CouponIssueOutcome outcome = couponService.issueByRequest(1L, expired.getId());
+            CouponIssueOutcome outcome = couponService.issueByRequest("req-exp", 1L, expired.getId());
 
             assertThat(outcome).isEqualTo(CouponIssueOutcome.EXPIRED);
             assertThat(issuedCouponRepository.findAllByUserId(1L)).isEmpty();
+        }
+
+        @DisplayName("같은 requestId가 재전달되면 기록된 결과를 그대로 반환하고 중복 발급하지 않는다(멱등)")
+        @Test
+        void isIdempotent_whenSameRequestIdRedelivered() {
+            Long templateId = limitedTemplate(10).getId();
+
+            CouponIssueOutcome first = couponService.issueByRequest("same-req", 1L, templateId);
+            CouponIssueOutcome again = couponService.issueByRequest("same-req", 1L, templateId);
+
+            assertAll(
+                () -> assertThat(first).isEqualTo(CouponIssueOutcome.ISSUED),
+                () -> assertThat(again).isEqualTo(CouponIssueOutcome.ISSUED),
+                () -> assertThat(issuedCouponRepository.findAllByUserId(1L)).hasSize(1),
+                () -> assertThat(couponTemplateRepository.findById(templateId).orElseThrow().getIssuedQuantity()).isEqualTo(1)
+            );
         }
     }
 }

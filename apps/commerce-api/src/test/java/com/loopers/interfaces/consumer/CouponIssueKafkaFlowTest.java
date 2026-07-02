@@ -70,12 +70,13 @@ class CouponIssueKafkaFlowTest {
         CouponTemplate template = couponTemplateRepository.save(new CouponTemplate(
             "선착순 3장", CouponType.FIXED, 1_000L, null, ZonedDateTime.now().plusDays(7), 3));
 
-        // when — 요청이 실제(임베디드) 브로커로 발행됨
-        couponFacade.requestIssue(userId, template.getId());
+        // when — 요청이 실제(임베디드) 브로커로 발행됨. 번호표(requestId) 반환
+        String requestId = couponFacade.requestIssue(userId, template.getId());
 
-        // then — 컨슈머가 비동기로 받아 발급할 때까지 대기
-        awaitUntil(() -> !issuedCouponRepository.findAllByUserId(userId).isEmpty());
+        // then — 컨슈머가 비동기로 받아 발급하면, 번호표 조회가 ISSUED가 된다(polling)
+        awaitUntil(() -> "ISSUED".equals(couponFacade.getIssueStatus(requestId)));
         assertAll(
+            () -> assertThat(couponFacade.getIssueStatus(requestId)).isEqualTo("ISSUED"),
             () -> assertThat(issuedCouponRepository.findAllByUserId(userId)).hasSize(1),
             () -> assertThat(couponTemplateRepository.findById(template.getId()).orElseThrow().getIssuedQuantity()).isEqualTo(1)
         );
