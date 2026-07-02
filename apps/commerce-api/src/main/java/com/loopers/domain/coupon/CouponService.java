@@ -11,6 +11,7 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,6 +21,7 @@ public class CouponService {
 
     private final CouponTemplateRepository couponTemplateRepository;
     private final IssuedCouponRepository issuedCouponRepository;
+    private final CouponIssueRequestRepository couponIssueRequestRepository;
 
     @Transactional
     public IssuedCoupon issue(Long userId, Long couponTemplateId) {
@@ -32,13 +34,23 @@ public class CouponService {
     }
 
     /**
-     * 선착순 발급 요청을 처리한다(Kafka 컨슈머가 호출). 비동기라 예외 대신 결과 값을 반환한다.
-     * 정합성: 1인 1매(존재검사) + 수량 한도(조건부 원자 UPDATE). 같은 트랜잭션에서 수량 증가와
-     * 발급 저장을 묶어, 저장 실패 시 수량 증가도 함께 롤백된다.
-     * 재전달돼도 존재검사가 DUPLICATE로 잡아 멱등하다(별도 인박스 불필요).
+     * 선착순 발급 요청을 처리한다(Kafka 컨슈머가 호출). 비동기라 예외 대신 결과 값을 반환·기록한다.
+     * requestId로 멱등을 보장한다 — 재전달되면 이미 기록된 결과를 그대로 돌려준다(Inbox 겸 결과 장부).
+     * 정합성: 1인 1매(존재검사) + 수량 한도(조건부 원자 UPDATE). 발급·수량증가·결과기록을 한 트랜잭션에 묶어
+     * 부분 실패 시 함께 롤백된다.
      */
     @Transactional
-    public CouponIssueOutcome issueByRequest(Long userId, Long couponTemplateId) {
+    public CouponIssueOutcome issueByRequest(String requestId, Long userId, Long couponTemplateId) {
+        Optional<CouponIssueRequest> handled = couponIssueRequestRepository.findByRequestId(requestId);
+        if (handled.isPresent()) {
+            return handled.get().getOutcome();
+        }
+        CouponIssueOutcome outcome = determineOutcome(userId, couponTemplateId);
+        couponIssueRequestRepository.save(new CouponIssueRequest(requestId, userId, couponTemplateId, outcome));
+        return outcome;
+    }
+
+    private CouponIssueOutcome determineOutcome(Long userId, Long couponTemplateId) {
         CouponTemplate template = couponTemplateRepository.findById(couponTemplateId).orElse(null);
         if (template == null) {
             return CouponIssueOutcome.NOT_FOUND;
@@ -54,6 +66,12 @@ public class CouponService {
         }
         issuedCouponRepository.save(new IssuedCoupon(userId, couponTemplateId));
         return CouponIssueOutcome.ISSUED;
+    }
+
+    /** 발급 요청 결과를 조회한다(유저 polling). 아직 처리 전이면 비어 있음(=PENDING). */
+    @Transactional(readOnly = true)
+    public Optional<CouponIssueOutcome> getRequestOutcome(String requestId) {
+        return couponIssueRequestRepository.findByRequestId(requestId).map(CouponIssueRequest::getOutcome);
     }
 
     @Transactional(readOnly = true)

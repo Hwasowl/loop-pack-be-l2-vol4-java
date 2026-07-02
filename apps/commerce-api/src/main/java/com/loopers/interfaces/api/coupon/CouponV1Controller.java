@@ -4,6 +4,7 @@ import com.loopers.application.coupon.CouponFacade;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.interfaces.api.auth.AuthUser;
 import com.loopers.interfaces.api.auth.LoginUser;
+import com.loopers.interfaces.api.coupon.dto.CouponIssueStatusV1Response;
 import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
 import lombok.RequiredArgsConstructor;
@@ -35,9 +36,15 @@ public class CouponV1Controller implements CouponV1ApiSpec {
     @PostMapping("/coupons/{templateId}/issue-requests")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @Override
-    public ApiResponse<Object> requestIssue(@LoginUser AuthUser authUser, @PathVariable Long templateId) {
-        couponFacade.requestIssue(authUser.id(), templateId);
-        return ApiResponse.success();
+    public ApiResponse<CouponIssueStatusV1Response> requestIssue(@LoginUser AuthUser authUser, @PathVariable Long templateId) {
+        String requestId = couponFacade.requestIssue(authUser.id(), templateId);
+        return ApiResponse.success(new CouponIssueStatusV1Response(requestId, "PENDING"));
+    }
+
+    @GetMapping("/coupons/issue-requests/{requestId}")
+    @Override
+    public ApiResponse<CouponIssueStatusV1Response> getIssueStatus(@LoginUser AuthUser authUser, @PathVariable String requestId) {
+        return ApiResponse.success(new CouponIssueStatusV1Response(requestId, couponFacade.getIssueStatus(requestId)));
     }
 
     @GetMapping("/users/me/coupons")

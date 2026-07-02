@@ -20,12 +20,12 @@ public class CouponIssueRequestKafkaSender implements CouponIssueRequestSender {
     private final KafkaTemplate<Object, Object> kafkaTemplate;
 
     @Override
-    public void send(Long userId, Long couponTemplateId) {
+    public void send(String requestId, Long userId, Long couponTemplateId) {
         try {
             kafkaTemplate.send(
                     KafkaTopics.COUPON_ISSUE_REQUESTS,
                     couponTemplateId.toString(),
-                    new CouponIssueMessage(userId, couponTemplateId)
+                    new CouponIssueMessage(requestId, userId, couponTemplateId)
             ).get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

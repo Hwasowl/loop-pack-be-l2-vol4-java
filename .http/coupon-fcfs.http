@@ -40,21 +40,31 @@ Content-Type: application/json
   "email": "loopers001@loopers.com"
 }
 
-### 4) [유저] 선착순 발급 요청 — 즉시 202. 실제 발급은 컨슈머가 비동기로 처리
+### 4) [유저] 선착순 발급 요청 — 즉시 202 {requestId, status:"PENDING"}. 실제 발급은 컨슈머가 비동기 처리
+# 응답의 data.requestId 를 아래 @requestId 에 넣는다.
 POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
 X-Loopers-LoginId: loopers001
 X-Loopers-LoginPw: Password123!
 
-### 5) [유저] 내 쿠폰함 — 잠시 후 조회하면 발급된 쿠폰이 보인다("쿠폰함에서 확인")
+### ↓ 위 응답의 data.requestId 로 교체
+@requestId = 붙여넣기
+
+### 5) [유저] 번호표로 결과 조회 (polling) — 잠시 후 PENDING → ISSUED / SOLD_OUT / DUPLICATE
+GET {{host}}/api/v1/coupons/issue-requests/{{requestId}}
+X-Loopers-LoginId: loopers001
+X-Loopers-LoginPw: Password123!
+
+### 6) [유저] 내 쿠폰함에서도 실제 발급 확인
 GET {{host}}/api/v1/users/me/coupons
 X-Loopers-LoginId: loopers001
 X-Loopers-LoginPw: Password123!
 
-### 6) [유저] 같은 템플릿 재요청 — 1인 1매라 두 번째는 발급되지 않는다(쿠폰함 그대로)
+### 7) [유저] 같은 템플릿 재요청 — 새 requestId를 받지만 1인 1매라 결과는 DUPLICATE
 POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
 X-Loopers-LoginId: loopers001
 X-Loopers-LoginPw: Password123!
+# → 이 requestId로 5)를 다시 조회하면 status:"DUPLICATE"
 
-### ── 선착순 "한도 초과" 는 유저 여러 명이 필요하다 ──
+### ── 선착순 "한도 초과(SOLD_OUT)" 는 유저 여러 명이 필요하다 ──
 ### HTTP로 20명 인증은 번거로우니, 동시 몰림(한도 3 vs 20명)은 아래 스크립트로 본다:
-###   docs/../scripts/coupon-fcfs-demo.sh  (토픽에 직접 20건 주입 → issued_quantity=3 확인)
+###   .docs/round7/coupon-fcfs-demo.sh  (토픽에 직접 20건 주입 → issued_quantity=3 확인)

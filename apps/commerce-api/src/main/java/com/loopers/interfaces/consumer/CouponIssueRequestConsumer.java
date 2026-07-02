@@ -42,8 +42,10 @@ public class CouponIssueRequestConsumer {
         for (ConsumerRecord<Object, Object> record : records) {
             try {
                 CouponIssueMessage message = objectMapper.readValue((byte[]) record.value(), CouponIssueMessage.class);
-                CouponIssueOutcome outcome = couponFacade.issueFromRequest(message.userId(), message.couponTemplateId());
-                log.info("[coupon-issue] user={}, template={} → {}", message.userId(), message.couponTemplateId(), outcome);
+                CouponIssueOutcome outcome = couponFacade.issueFromRequest(
+                        message.requestId(), message.userId(), message.couponTemplateId());
+                log.info("[coupon-issue] request={}, user={}, template={} → {}",
+                        message.requestId(), message.userId(), message.couponTemplateId(), outcome);
             } catch (Exception e) {
                 // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
                 dlqPublisher.publish(KafkaTopics.COUPON_ISSUE_REQUESTS, record, e);
