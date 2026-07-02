@@ -49,7 +49,12 @@ public class ProductSoldEventPublisher {
         CatalogEventPayload payload = new CatalogEventPayload(
                 "sold-" + item.getId(), TYPE_SOLD, item.getProductId(), null, occurredAt, item.getQuantity(), null);
         try {
-            kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, item.getProductId().toString(), payload);
+            kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, item.getProductId().toString(), payload)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.warn("판매 이벤트 발행 실패(async) (productId={}, orderItemId={}): {}", item.getProductId(), item.getId(), ex.getMessage());
+                    }
+                });
         } catch (Exception e) {
             // 결제는 이미 커밋됐다. 발행 실패로 결제 확정을 되돌리지 않고 집계 이벤트만 버린다(유실 허용).
             log.warn("판매 이벤트 발행 실패 (productId={}, orderItemId={}): {}", item.getProductId(), item.getId(), e.getMessage());

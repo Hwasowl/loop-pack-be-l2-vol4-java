@@ -53,7 +53,13 @@ public class LikeEventPublisher {
         CatalogEventPayload payload = new CatalogEventPayload(
                 eventId, TYPE_LIKE_COUNT_CHANGED, productId, userId, occurredAt.toString(), null, likeCount);
         try {
-            kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, productId.toString(), payload);
+            kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, productId.toString(), payload)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        // 비동기 전송 실패(브로커 nack 등)는 동기 catch에 안 잡히므로 여기서 관측한다.
+                        log.warn("좋아요 스냅샷 발행 실패(async) (productId={}): {}", productId, ex.getMessage());
+                    }
+                });
         } catch (Exception e) {
             // 좋아요 관계(product_like)는 이미 커밋됐다. 발행 실패로 API를 500 내지 않고, 집계 이벤트만 버린다.
             // 유실은 허용 — 원본이 남아 다음 스냅샷/재집계로 복구할 수 있다.

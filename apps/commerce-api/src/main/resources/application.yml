@@ -24,6 +24,20 @@ spring:
       - kafka.yml
       - logging.yml
       - monitoring.yml
+  # @Async 이벤트 발행기(조회/좋아요/판매/유저행동)가 쓰는 실행기.
+  # 기본 자동구성은 큐가 무한(Integer.MAX_VALUE)이라 폭주 시 무한 적재된다 → 풀·큐를 명시적으로 바운드한다.
+  task:
+    execution:
+      pool:
+        core-size: 4
+        max-size: 8
+        queue-capacity: 500
+      # 배포/종료 시 진행 중인 발행 작업을 인터럽트하지 않고 최대 20초 기다린다(init 적체 방지).
+      shutdown:
+        await-termination: true
+        await-termination-period: 20s
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
 
 springdoc:
   use-fqn: true

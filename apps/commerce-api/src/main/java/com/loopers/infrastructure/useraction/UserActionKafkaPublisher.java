@@ -29,7 +29,12 @@ public class UserActionKafkaPublisher {
     public void on(UserActionEvent event) {
         try {
             String key = event.userId() == null ? null : event.userId().toString();
-            kafkaTemplate.send(KafkaTopics.USER_ACTIONS, key, event);
+            kafkaTemplate.send(KafkaTopics.USER_ACTIONS, key, event)
+                .whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        log.warn("유저 행동 로그 발행 실패(async) (action={}, targetId={}): {}", event.action(), event.targetId(), ex.getMessage());
+                    }
+                });
         } catch (Exception e) {
             log.warn("유저 행동 로그 발행 실패 (action={}, targetId={}): {}", event.action(), event.targetId(), e.getMessage());
         }
