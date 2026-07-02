@@ -12,7 +12,9 @@ public record CouponTemplateV1Response(
     long discountValue,
     Long minOrderAmount,
     ZonedDateTime expiredAt,
-    ZonedDateTime createdAt
+    ZonedDateTime createdAt,
+    Integer totalQuantity,
+    int issuedQuantity
 ) {
     public static CouponTemplateV1Response from(CouponTemplateInfo info) {
         return new CouponTemplateV1Response(
@@ -22,7 +24,9 @@ public record CouponTemplateV1Response(
             info.discountValue(),
             info.minOrderAmount(),
             info.expiredAt(),
-            info.createdAt()
+            info.createdAt(),
+            info.totalQuantity(),
+            info.issuedQuantity()
         );
     }
 }

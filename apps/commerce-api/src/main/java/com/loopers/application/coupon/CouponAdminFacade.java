@@ -15,8 +15,8 @@ public class CouponAdminFacade {
 
     private final CouponAdminService couponAdminService;
 
-    public CouponTemplateInfo create(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt) {
-        return CouponTemplateInfo.from(couponAdminService.create(name, type, discountValue, minOrderAmount, expiredAt));
+    public CouponTemplateInfo create(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt, Integer totalQuantity) {
+        return CouponTemplateInfo.from(couponAdminService.create(name, type, discountValue, minOrderAmount, expiredAt, totalQuantity));
     }
 
     public CouponTemplateInfo getTemplate(Long id) {

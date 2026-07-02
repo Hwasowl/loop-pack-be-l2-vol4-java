@@ -160,7 +160,7 @@ class OrderApiE2ETest {
         void appliesCoupon_throughFullFlow() {
             // given - 어드민이 정률 10% 쿠폰 템플릿 생성
             CreateCouponTemplateV1Request createReq = new CreateCouponTemplateV1Request(
-                "10% 할인", CouponType.RATE, 10L, null, LocalDateTime.now().plusDays(7));
+                "10% 할인", CouponType.RATE, 10L, null, LocalDateTime.now().plusDays(7), null);
             ResponseEntity<ApiResponse<CouponTemplateV1Response>> createRes = restTemplate.exchange(
                 "/api-admin/v1/coupons", HttpMethod.POST, new HttpEntity<>(createReq, adminHeaders()),
                 new ParameterizedTypeReference<>() {}

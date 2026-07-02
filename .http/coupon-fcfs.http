@@ -1,0 +1,60 @@
+### 선착순 쿠폰 플레이그라운드
+### 서버: commerce-api (local, :8080). Kafka/MySQL 도커 필요.
+### 인증 헤더 — 유저: X-Loopers-LoginId/Pw, 어드민: X-Loopers-Ldap(아무 값)
+
+@host = http://localhost:8080
+@ldap = admin-tester
+
+### 1) [어드민] 선착순 한정 수량(3장) 쿠폰 템플릿 생성
+# 응답의 id 를 아래 @templateId 에 넣는다. issuedQuantity=0, totalQuantity=3 확인.
+POST {{host}}/api-admin/v1/coupons
+Content-Type: application/json
+X-Loopers-Ldap: {{ldap}}
+
+{
+  "name": "선착순 3장 쿠폰",
+  "type": "FIXED",
+  "value": 1000,
+  "minOrderAmount": null,
+  "expiredAt": "2027-12-31T23:59:59",
+  "totalQuantity": 3
+}
+
+### ↓ 위 응답의 data.id 로 교체
+@templateId = 1
+
+### 2) [어드민] 템플릿 상태 조회 — issuedQuantity 가 발급될 때마다 올라간다
+GET {{host}}/api-admin/v1/coupons/{{templateId}}
+X-Loopers-Ldap: {{ldap}}
+
+### 3) [유저] 회원가입 — 발급요청 API는 실제 인증 유저가 필요하다
+# (이미 가입돼 있으면 건너뛴다. loginId/pw 는 아래 4~5의 헤더와 일치시킬 것)
+POST {{host}}/api/v1/users
+Content-Type: application/json
+
+{
+  "loginId": "tester1",
+  "password": "password123!",
+  "email": "tester1@loopers.com",
+  "birth": "1995-01-01",
+  "gender": "MALE"
+}
+
+### 4) [유저] 선착순 발급 요청 — 즉시 202. 실제 발급은 컨슈머가 비동기로 처리
+POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
+X-Loopers-LoginId: tester1
+X-Loopers-LoginPw: password123!
+
+### 5) [유저] 내 쿠폰함 — 잠시 후 조회하면 발급된 쿠폰이 보인다("쿠폰함에서 확인")
+GET {{host}}/api/v1/users/me/coupons
+X-Loopers-LoginId: tester1
+X-Loopers-LoginPw: password123!
+
+### 6) [유저] 같은 템플릿 재요청 — 1인 1매라 두 번째는 발급되지 않는다(쿠폰함 그대로)
+POST {{host}}/api/v1/coupons/{{templateId}}/issue-requests
+X-Loopers-LoginId: tester1
+X-Loopers-LoginPw: password123!
+
+### ── 선착순 "한도 초과" 는 유저 여러 명이 필요하다 ──
+### HTTP로 20명 인증은 번거로우니, 동시 몰림(한도 3 vs 20명)은 아래 스크립트로 본다:
+###   docs/../scripts/coupon-fcfs-demo.sh  (토픽에 직접 20건 주입 → issued_quantity=3 확인)
