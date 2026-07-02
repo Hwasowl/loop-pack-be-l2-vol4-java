@@ -21,16 +21,20 @@ public class DlqPublisher {
     private final KafkaTemplate<Object, Object> kafkaTemplate;
 
     public void publish(String originalTopic, ConsumerRecord<?, ?> record, Exception cause) {
-        String dlqTopic = KafkaTopics.dlq(originalTopic);
         String key = record.key() == null ? null : record.key().toString();
-        DlqMessage payload = new DlqMessage(originalTopic, key, stringify(record.value()), cause.getMessage());
+        publish(originalTopic, key, stringify(record.value()), cause);
+    }
+
+    /** 컨슈머 레코드가 아닌 원본(예: outbox 행)을 격리할 때 쓰는 오버로드. */
+    public void publish(String originalTopic, String key, String payload, Exception cause) {
+        String dlqTopic = KafkaTopics.dlq(originalTopic);
+        DlqMessage message = new DlqMessage(originalTopic, key, payload, cause.getMessage());
         try {
-            kafkaTemplate.send(dlqTopic, key, payload);
-            log.warn("[DLQ] {} → {} (offset={}): {}", originalTopic, dlqTopic, record.offset(), cause.getMessage());
+            kafkaTemplate.send(dlqTopic, key, message);
+            log.warn("[DLQ] {} → {} (key={}): {}", originalTopic, dlqTopic, key, cause.getMessage());
         } catch (Exception e) {
             // DLQ 발행마저 실패하면 원본 메시지는 로그로만 남긴다(무한 재시도로 파티션을 막지 않는다).
-            log.error("[DLQ] 발행 실패 topic={} offset={}: {} / 원본: {}",
-                    dlqTopic, record.offset(), e.getMessage(), payload.payload());
+            log.error("[DLQ] 발행 실패 topic={} key={}: {} / 원본: {}", dlqTopic, key, e.getMessage(), payload);
         }
     }
 

@@ -1,6 +1,7 @@
 package com.loopers.infrastructure.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.loopers.confg.kafka.DlqPublisher;
 import com.loopers.confg.kafka.KafkaTopics;
 import com.loopers.domain.order.OrderEventMessage;
 import com.loopers.domain.outbox.OutboxEvent;
@@ -31,18 +32,28 @@ public class OutboxRelay {
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<Object, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final DlqPublisher dlqPublisher;
 
     @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay-ms:2000}")
     public void relay() {
         List<OutboxEvent> batch = outboxRepository.findUnpublished(BATCH_SIZE);
         for (OutboxEvent event : batch) {
+            OrderEventMessage message;
             try {
-                OrderEventMessage message = objectMapper.readValue(event.getPayload(), OrderEventMessage.class);
+                message = objectMapper.readValue(event.getPayload(), OrderEventMessage.class);
+            } catch (Exception e) {
+                // 역직렬화 실패(포이즌)는 재시도해도 영영 실패 → DLQ로 격리하고 발행 처리(스킵).
+                // 이걸 break로 막으면 뒤의 정상 이벤트 전체가 영구히 멈춘다.
+                dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
+                outboxRepository.markPublished(event.getId());
+                continue;
+            }
+            try {
                 // 브로커 ack까지 대기 — 발행 성공을 확인한 뒤에만 published로 표시한다.
                 kafkaTemplate.send(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), message).get();
                 outboxRepository.markPublished(event.getId());
             } catch (Exception e) {
-                // 발행 실패 → 표시 안 함(다음 폴링에서 재시도). 순서 보장을 위해 이후 행 처리는 중단한다.
+                // 일시적 발행 실패(브로커 다운 등) → 표시 안 함. 순서 보존 위해 이번 배치는 중단, 다음 폴링에서 재시도.
                 log.warn("outbox 발행 실패 (id={}, orderId={}): {}", event.getId(), event.getAggregateId(), e.getMessage());
                 break;
             }

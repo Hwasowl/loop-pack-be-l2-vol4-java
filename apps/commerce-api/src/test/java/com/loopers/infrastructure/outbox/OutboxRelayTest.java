@@ -1,6 +1,8 @@
 package com.loopers.infrastructure.outbox;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.loopers.confg.kafka.DlqPublisher;
+import com.loopers.confg.kafka.KafkaTopics;
 import com.loopers.domain.outbox.OutboxEvent;
 import com.loopers.domain.outbox.OutboxRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,11 +36,14 @@ class OutboxRelayTest {
     @Mock
     private KafkaTemplate<Object, Object> kafkaTemplate;
 
+    @Mock
+    private DlqPublisher dlqPublisher;
+
     private OutboxRelay relay;
 
     @BeforeEach
     void setUp() {
-        relay = new OutboxRelay(outboxRepository, kafkaTemplate, new ObjectMapper());
+        relay = new OutboxRelay(outboxRepository, kafkaTemplate, new ObjectMapper(), dlqPublisher);
     }
 
     private OutboxEvent event(long orderId) {
@@ -75,5 +81,22 @@ class OutboxRelayTest {
 
         // then
         verify(outboxRepository, never()).markPublished(anyLong());
+    }
+
+    @DisplayName("역직렬화 실패(포이즌) 행은 DLQ로 격리하고, 뒤의 정상 행은 계속 발행한다")
+    @Test
+    void routesPoisonToDlq_andContinues() {
+        // given - 첫 행은 파싱 불가(포이즌), 둘째 행은 정상
+        OutboxEvent poison = new OutboxEvent(9L, "PAYMENT_COMPLETED", "not-json");
+        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(poison, event(2L)));
+        CompletableFuture<SendResult<Object, Object>> ok = CompletableFuture.completedFuture(null);
+        when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(ok);
+
+        // when
+        relay.relay();
+
+        // then - 포이즌은 DLQ로, 정상 행만 발행(포이즌이 뒤 행을 막지 않음)
+        verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), eq("not-json"), any());
+        verify(kafkaTemplate, times(1)).send(anyString(), any(), any());
     }
 }

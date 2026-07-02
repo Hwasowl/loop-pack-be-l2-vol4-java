@@ -7,6 +7,7 @@ import com.loopers.domain.like.ProductUnliked;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import java.time.ZonedDateTime;
  * 이 방식은 중복·유실에 강하다(다음 스냅샷이 자동 교정). 대신 순서 역전 위험은 occurredAt 토큰으로 막는다.
  * key=productId 로 같은 상품 이벤트의 파티션 순서를 보장한다.
  * (원본 product_like가 있어 유실돼도 재집계로 복구 가능하므로 Outbox 없이 직접 발행한다)
+ * @Async — 총량 count 조회·발행을 요청 스레드에서 분리한다(요청 지연 방지). 스레드풀 포화 감지는 미보강 TODO.
  */
 @Slf4j
 @Component
@@ -32,12 +34,14 @@ public class LikeEventPublisher {
     private final LikeRepository likeRepository;
     private final KafkaTemplate<Object, Object> kafkaTemplate;
 
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public void on(ProductLiked event) {
         publish(event.eventId(), event.productId(), event.userId(), event.occurredAt());
     }
 
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public void on(ProductUnliked event) {
