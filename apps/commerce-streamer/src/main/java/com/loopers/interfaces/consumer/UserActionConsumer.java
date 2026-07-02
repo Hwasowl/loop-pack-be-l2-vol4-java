@@ -1,6 +1,7 @@
 package com.loopers.interfaces.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.loopers.confg.kafka.DlqPublisher;
 import com.loopers.confg.kafka.KafkaConfig;
 import com.loopers.confg.kafka.KafkaTopics;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ import java.util.List;
 public class UserActionConsumer {
 
     private final ObjectMapper objectMapper;
+    private final DlqPublisher dlqPublisher;
 
     @KafkaListener(
             topics = KafkaTopics.USER_ACTIONS,
@@ -31,22 +33,15 @@ public class UserActionConsumer {
     )
     public void consume(List<ConsumerRecord<Object, Object>> records, Acknowledgment acknowledgment) {
         for (ConsumerRecord<Object, Object> record : records) {
-            UserActionMessage action = parse(record);
-            if (action == null) {
-                continue;
+            try {
+                UserActionMessage action = objectMapper.readValue((byte[]) record.value(), UserActionMessage.class);
+                log.info("[user-action] userId={} action={} targetId={} at={}",
+                        action.userId(), action.action(), action.targetId(), action.occurredAt());
+            } catch (Exception e) {
+                // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
+                dlqPublisher.publish(KafkaTopics.USER_ACTIONS, record, e);
             }
-            log.info("[user-action] userId={} action={} targetId={} at={}",
-                    action.userId(), action.action(), action.targetId(), action.occurredAt());
         }
         acknowledgment.acknowledge();
-    }
-
-    private UserActionMessage parse(ConsumerRecord<Object, Object> record) {
-        try {
-            return objectMapper.readValue((byte[]) record.value(), UserActionMessage.class);
-        } catch (Exception e) {
-            log.error("user-actions 역직렬화 실패 (offset={}): {}", record.offset(), e.getMessage());
-            return null;
-        }
     }
 }

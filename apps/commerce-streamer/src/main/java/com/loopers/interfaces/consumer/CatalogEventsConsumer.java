@@ -2,6 +2,7 @@ package com.loopers.interfaces.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.application.metrics.ProductMetricsService;
+import com.loopers.confg.kafka.DlqPublisher;
 import com.loopers.confg.kafka.KafkaConfig;
 import com.loopers.confg.kafka.KafkaTopics;
 import lombok.RequiredArgsConstructor;
@@ -26,37 +27,32 @@ public class CatalogEventsConsumer {
 
     private final ProductMetricsService productMetricsService;
     private final ObjectMapper objectMapper;
+    private final DlqPublisher dlqPublisher;
 
     @KafkaListener(
             topics = KafkaTopics.CATALOG_EVENTS,
+            groupId = "product-metrics-consumer",
             containerFactory = KafkaConfig.BATCH_LISTENER
     )
     public void consume(List<ConsumerRecord<Object, Object>> records, Acknowledgment acknowledgment) {
         for (ConsumerRecord<Object, Object> record : records) {
-            CatalogEvent event = parse(record);
-            if (event == null) {
-                continue;
-            }
-            switch (event.eventType()) {
-                case "PRODUCT_LIKE_COUNT_CHANGED" ->
-                        productMetricsService.applyLikeSnapshot(
-                                event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
-                case "PRODUCT_VIEWED" ->
-                        productMetricsService.applyView(event.productId());
-                case "PRODUCT_SOLD" ->
-                        productMetricsService.applySold(event.eventId(), event.productId(), event.quantity());
-                default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
+            try {
+                CatalogEvent event = objectMapper.readValue((byte[]) record.value(), CatalogEvent.class);
+                switch (event.eventType()) {
+                    case "PRODUCT_LIKE_COUNT_CHANGED" ->
+                            productMetricsService.applyLikeSnapshot(
+                                    event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
+                    case "PRODUCT_VIEWED" ->
+                            productMetricsService.applyView(event.productId());
+                    case "PRODUCT_SOLD" ->
+                            productMetricsService.applySold(event.eventId(), event.productId(), event.quantity());
+                    default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
+                }
+            } catch (Exception e) {
+                // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
+                dlqPublisher.publish(KafkaTopics.CATALOG_EVENTS, record, e);
             }
         }
         acknowledgment.acknowledge();
-    }
-
-    private CatalogEvent parse(ConsumerRecord<Object, Object> record) {
-        try {
-            return objectMapper.readValue((byte[]) record.value(), CatalogEvent.class);
-        } catch (Exception e) {
-            log.error("catalog-events 역직렬화 실패 (offset={}): {}", record.offset(), e.getMessage());
-            return null;
-        }
     }
 }

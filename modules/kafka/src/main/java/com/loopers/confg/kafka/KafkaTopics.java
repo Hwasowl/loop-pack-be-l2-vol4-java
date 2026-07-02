@@ -17,4 +17,9 @@ public final class KafkaTopics {
 
     /** 유저 행동 로그(조회/좋아요/주문 등). 이 토픽 자체가 append-only 로그. partition key = userId */
     public static final String USER_ACTIONS = "user-actions";
+
+    /** 처리 실패(역직렬화·비즈니스 예외) 메시지를 격리하는 dead-letter 토픽 이름 규칙. */
+    public static String dlq(String topic) {
+        return topic + "-dlq";
+    }
 }
