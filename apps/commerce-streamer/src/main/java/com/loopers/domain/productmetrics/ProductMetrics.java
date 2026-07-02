@@ -32,6 +32,9 @@ public class ProductMetrics {
     @Column(name = "view_count", nullable = false)
     private long viewCount;
 
+    @Column(name = "like_updated_at")
+    private ZonedDateTime likeUpdatedAt;
+
     @Column(name = "updated_at", nullable = false)
     private ZonedDateTime updatedAt;
 
@@ -46,9 +49,18 @@ public class ProductMetrics {
         return new ProductMetrics(productId);
     }
 
-    /** 좋아요 수 증감. 음수로 내려가지 않도록 0에서 클램프한다. */
-    public void addLike(long delta) {
-        this.likeCount = Math.max(0, this.likeCount + delta);
+    /**
+     * 좋아요 총량 스냅샷을 최신-우선으로 반영한다. 절대값 덮어쓰기라, 늦게 도착한 과거 스냅샷은 버려야
+     * 정합성이 유지된다 — eventAt이 마지막 반영 시각보다 이후일 때만 덮어쓴다.
+     * @return 실제로 반영했으면 true, 오래된 이벤트라 버렸으면 false
+     */
+    public boolean applyLikeSnapshot(long likeCount, ZonedDateTime eventAt) {
+        if (this.likeUpdatedAt != null && !eventAt.isAfter(this.likeUpdatedAt)) {
+            return false;
+        }
+        this.likeCount = Math.max(0, likeCount);
+        this.likeUpdatedAt = eventAt;
+        return true;
     }
 
     /** 조회 수 증가. */

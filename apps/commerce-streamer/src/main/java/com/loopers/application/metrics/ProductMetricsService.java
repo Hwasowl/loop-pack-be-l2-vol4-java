@@ -8,37 +8,27 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZonedDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class ProductMetricsService {
-
-    private static final String EVENT_LIKED = "PRODUCT_LIKED";
-    private static final String EVENT_UNLIKED = "PRODUCT_UNLIKED";
 
     private final ProductMetricsRepository productMetricsRepository;
     private final EventHandledRepository eventHandledRepository;
 
     /**
-     * 좋아요/취소 이벤트를 소비해 product_metrics.like_count에 반영한다.
-     * eventId로 멱등 처리하여 같은 이벤트가 중복 도착해도 한 번만 반영한다.
+     * 좋아요 총량 스냅샷을 소비해 product_metrics.like_count에 최신-우선으로 반영한다.
+     * 절대값 덮어쓰기라 중복·유실엔 강하고(다음 스냅샷이 교정), 순서 역전만 occurredAt 비교로 막는다.
+     * 그래서 멱등 장부(event_handled)가 필요 없다 — 오래된 이벤트는 모델이 스스로 버린다.
      */
     @Transactional
-    public void applyLike(String eventId, String eventType, Long productId) {
-        if (eventHandledRepository.existsByEventId(eventId)) {
-            return;
-        }
-        long delta = switch (eventType) {
-            case EVENT_LIKED -> 1L;
-            case EVENT_UNLIKED -> -1L;
-            default -> 0L;
-        };
-        if (delta != 0L) {
-            ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
-                    .orElseGet(() -> ProductMetrics.init(productId));
-            metrics.addLike(delta);
+    public void applyLikeSnapshot(Long productId, long likeCount, ZonedDateTime occurredAt) {
+        ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
+                .orElseGet(() -> ProductMetrics.init(productId));
+        if (metrics.applyLikeSnapshot(likeCount, occurredAt)) {
             productMetricsRepository.save(metrics);
         }
-        eventHandledRepository.save(new EventHandled(eventId));
     }
 
     /**

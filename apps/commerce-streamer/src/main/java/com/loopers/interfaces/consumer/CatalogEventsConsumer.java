@@ -11,6 +11,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
@@ -37,8 +38,9 @@ public class CatalogEventsConsumer {
                 continue;
             }
             switch (event.eventType()) {
-                case "PRODUCT_LIKED", "PRODUCT_UNLIKED" ->
-                        productMetricsService.applyLike(event.eventId(), event.eventType(), event.productId());
+                case "PRODUCT_LIKE_COUNT_CHANGED" ->
+                        productMetricsService.applyLikeSnapshot(
+                                event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
                 case "PRODUCT_VIEWED" ->
                         productMetricsService.applyView(event.productId());
                 case "PRODUCT_SOLD" ->
