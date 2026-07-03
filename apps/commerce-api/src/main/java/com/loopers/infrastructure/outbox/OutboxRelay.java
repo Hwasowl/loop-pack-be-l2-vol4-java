@@ -39,8 +39,11 @@ public class OutboxRelay {
     private final ObjectMapper objectMapper;
     private final DlqPublisher dlqPublisher;
 
-    /** 즉시발행(AFTER_COMMIT)이 채가도록 두는 유예. 이 시간이 지난 미발행 행만 백스톱으로 줍는다(29CM의 10분과 동일 개념). */
-    @Value("${outbox.relay.backstop-grace-ms:600000}")
+    /**
+     * 즉시발행(AFTER_COMMIT)과의 경합 회피용 유예. 이 시간이 지난 미발행 행만 폴링이 줍는다.
+     * 즉시발행 타임아웃(5s)보다 넉넉히 크되, 유실 불허 경로의 복구 지연을 줄이도록 분 단위가 아닌 초 단위로 둔다.
+     */
+    @Value("${outbox.relay.backstop-grace-ms:60000}")
     private long backstopGraceMs;
 
     @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay-ms:2000}")
@@ -54,9 +57,12 @@ public class OutboxRelay {
                 message = objectMapper.readValue(event.getPayload(), OrderEventMessage.class);
             } catch (Exception e) {
                 // 역직렬화 실패(포이즌)는 재시도해도 영영 실패 → DLQ로 격리하고 FAILED 표시(재폴링 제외).
-                // 이걸 break로 막으면 뒤의 정상 이벤트 전체가 영구히 멈춘다.
-                log.error("outbox 역직렬화 실패 — DLQ 격리 (id={}, orderId={})", event.getId(), event.getAggregateId(), e);
-                dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
+                // 단, DLQ 격리가 실제로 성공했을 때만 FAILED로 굳힌다 — 브로커 다운으로 격리도 실패하면
+                // FAILED로 종결하는 순간 유실이므로, PENDING으로 두고 이번 배치는 중단해 다음 주기에 재시도한다.
+                log.error("outbox 역직렬화 실패 — DLQ 격리 시도 (id={}, orderId={})", event.getId(), event.getAggregateId(), e);
+                if (!dlqPublisher.publishSync(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e)) {
+                    break;
+                }
                 outboxRepository.markFailed(event.getId());
                 continue;
             }
@@ -69,9 +75,13 @@ public class OutboxRelay {
                 event.recordSendFailure();
                 outboxRepository.incrementRetryCount(event.getId());
                 if (event.sendFailureExceeded(MAX_SEND_RETRY)) {
-                    // 역직렬화는 되지만 send가 반복 실패 → DLQ로 격리하고 발행 처리해 뒤 이벤트가 영영 막히지 않게 한다.
-                    log.error("outbox 발행 {}회 초과 — DLQ 격리 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId(), e);
-                    dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
+                    // send가 임계까지 반복 실패 → DLQ로 격리하고 FAILED 처리해 뒤 이벤트가 막히지 않게 한다.
+                    // 단, 격리가 실제로 성공했을 때만 FAILED로 굳힌다 — 브로커 다운이 원인이면 DLQ(같은 브로커)도
+                    // 실패하므로, 그땐 FAILED로 종결(=유실)하지 않고 PENDING으로 남겨 브로커 복구 후 재격리한다.
+                    log.error("outbox 발행 {}회 초과 — DLQ 격리 시도 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId(), e);
+                    if (!dlqPublisher.publishSync(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e)) {
+                        break;
+                    }
                     outboxRepository.markFailed(event.getId());
                     continue;
                 }

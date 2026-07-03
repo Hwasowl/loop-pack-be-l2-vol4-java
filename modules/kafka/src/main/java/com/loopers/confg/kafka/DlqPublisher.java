@@ -7,6 +7,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 처리에 실패한 메시지를 원본 토픽의 dead-letter 토픽(&lt;topic&gt;-dlq)으로 재발행한다.
@@ -40,6 +41,28 @@ public class DlqPublisher {
         } catch (Exception e) {
             // DLQ 발행마저 실패하면 원본 메시지는 로그로만 남긴다(무한 재시도로 파티션을 막지 않는다).
             log.error("[DLQ] 발행 실패 topic={} key={}: {} / 원본 길이={}", dlqTopic, key, e.getMessage(), payload == null ? 0 : payload.length());
+        }
+    }
+
+    /**
+     * DLQ 적재의 성공 여부를 확인해 반환한다(브로커 ack까지 대기). 릴레이가 outbox를 FAILED로 종결하기 전에
+     * "정말 DLQ에 담겼는지"를 확인하는 용도 — 브로커 다운으로 DLQ 발행도 실패하면 false를 돌려
+     * 호출자가 outbox를 FAILED로 굳히지 않고 PENDING으로 두어 재시도하게 한다.
+     */
+    public boolean publishSync(String originalTopic, String key, String payload, Exception cause) {
+        String dlqTopic = KafkaTopics.dlq(originalTopic);
+        DlqMessage message = new DlqMessage(originalTopic, key, payload, cause.getMessage());
+        try {
+            kafkaTemplate.send(dlqTopic, key, message).get(5, TimeUnit.SECONDS);
+            log.warn("[DLQ] {} → {} (key={}): {}", originalTopic, dlqTopic, key, cause.getMessage());
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("[DLQ] 격리 중단 topic={} key={}", dlqTopic, key);
+            return false;
+        } catch (Exception e) {
+            log.error("[DLQ] 격리 실패 — outbox FAILED 종결 보류 topic={} key={}: {}", dlqTopic, key, e.getMessage());
+            return false;
         }
     }
 

@@ -94,12 +94,13 @@ class OutboxRelayTest {
         when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(poison, event(2L)));
         CompletableFuture<SendResult<Object, Object>> ok = CompletableFuture.completedFuture(null);
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(ok);
+        when(dlqPublisher.publishSync(any(), any(), any(), any())).thenReturn(true);
 
         // when
         relay.relay();
 
         // then - 포이즌은 DLQ로, 정상 행만 발행(포이즌이 뒤 행을 막지 않음)
-        verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), eq("not-json"), any());
+        verify(dlqPublisher).publishSync(eq(KafkaTopics.ORDER_EVENTS), eq("9"), eq("not-json"), any());
         verify(kafkaTemplate, times(1)).send(anyString(), any(), any());
         // 정상 행은 PUBLISHED, 포이즌은 FAILED로 표시된다(성공과 구분)
         verify(outboxRepository, times(1)).markPublished(anyLong());
@@ -118,14 +119,39 @@ class OutboxRelayTest {
         CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
         failed.completeExceptionally(new RuntimeException("broker down"));
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);
+        when(dlqPublisher.publishSync(any(), any(), any(), any())).thenReturn(true);
 
         // when
         relay.relay();
 
         // then - 임계 초과라 break가 아니라 DLQ 격리 + FAILED 표시(PUBLISHED로 표시하지 않는다)
-        verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), anyString(), any());
+        verify(dlqPublisher).publishSync(eq(KafkaTopics.ORDER_EVENTS), eq("9"), anyString(), any());
         verify(outboxRepository).incrementRetryCount(anyLong());
         verify(outboxRepository).markFailed(anyLong());
+        verify(outboxRepository, never()).markPublished(anyLong());
+    }
+
+    @DisplayName("발행이 임계를 넘겼어도 DLQ 격리마저 실패하면 FAILED로 종결하지 않고 PENDING으로 남긴다(유실 방지)")
+    @Test
+    void keepsPending_whenDlqEscalationAlsoFails() {
+        // given - 임계까지 실패가 누적된 행 + send·DLQ 모두 실패(브로커 다운 상황)
+        OutboxEvent stuck = event(9L);
+        for (int i = 0; i < 5; i++) {
+            stuck.recordSendFailure();
+        }
+        when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(stuck));
+        CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("broker down"));
+        when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);
+        when(dlqPublisher.publishSync(any(), any(), any(), any())).thenReturn(false);
+
+        // when
+        relay.relay();
+
+        // then - 격리 실패 시 FAILED로 굳히지 않는다(=유실 방지). 재시도 상태만 남기고 PENDING 유지
+        verify(dlqPublisher).publishSync(eq(KafkaTopics.ORDER_EVENTS), eq("9"), anyString(), any());
+        verify(outboxRepository).incrementRetryCount(anyLong());
+        verify(outboxRepository, never()).markFailed(anyLong());
         verify(outboxRepository, never()).markPublished(anyLong());
     }
 }
