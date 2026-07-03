@@ -38,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  */
 @SpringBootTest(properties = {
     "payment.order-consumer=kafka",
+    "outbox.relay.backstop-grace-ms=0",
     "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}",
     "spring.kafka.properties.auto.offset.reset=earliest"
 })

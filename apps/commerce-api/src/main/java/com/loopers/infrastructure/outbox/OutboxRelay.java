@@ -8,11 +8,14 @@ import com.loopers.domain.outbox.OutboxEvent;
 import com.loopers.domain.outbox.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -36,9 +39,15 @@ public class OutboxRelay {
     private final ObjectMapper objectMapper;
     private final DlqPublisher dlqPublisher;
 
+    /** 즉시발행(AFTER_COMMIT)이 채가도록 두는 유예. 이 시간이 지난 미발행 행만 백스톱으로 줍는다. */
+    @Value("${outbox.relay.backstop-grace-ms:10000}")
+    private long backstopGraceMs;
+
     @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay-ms:2000}")
     public void relay() {
-        List<OutboxEvent> batch = outboxRepository.findUnpublished(BATCH_SIZE);
+        // 즉시발행이 처리할 시간을 준 뒤에도 미발행인 낙오분만 줍는다(즉시발행과의 이중발행 방지).
+        ZonedDateTime threshold = ZonedDateTime.now().minus(Duration.ofMillis(backstopGraceMs));
+        List<OutboxEvent> batch = outboxRepository.findUnpublishedOlderThan(threshold, BATCH_SIZE);
         for (OutboxEvent event : batch) {
             OrderEventMessage message;
             try {

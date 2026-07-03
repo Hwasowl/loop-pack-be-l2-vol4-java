@@ -55,7 +55,7 @@ class OutboxRelayTest {
     @Test
     void publishesAndMarksEach() {
         // given
-        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(event(1L), event(2L)));
+        when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(event(1L), event(2L)));
         CompletableFuture<SendResult<Object, Object>> ok = CompletableFuture.completedFuture(null);
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(ok);
 
@@ -71,7 +71,7 @@ class OutboxRelayTest {
     @Test
     void stopsWithoutMarking_onSendFailure() {
         // given
-        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(event(1L), event(2L)));
+        when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(event(1L), event(2L)));
         CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
         failed.completeExceptionally(new RuntimeException("broker down"));
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);
@@ -89,7 +89,7 @@ class OutboxRelayTest {
     void routesPoisonToDlq_andContinues() {
         // given - 첫 행은 파싱 불가(포이즌), 둘째 행은 정상
         OutboxEvent poison = new OutboxEvent(9L, "PAYMENT_COMPLETED", "not-json");
-        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(poison, event(2L)));
+        when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(poison, event(2L)));
         CompletableFuture<SendResult<Object, Object>> ok = CompletableFuture.completedFuture(null);
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(ok);
 
@@ -111,7 +111,7 @@ class OutboxRelayTest {
         for (int i = 0; i < 5; i++) {
             stuck.recordSendFailure();
         }
-        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(stuck));
+        when(outboxRepository.findUnpublishedOlderThan(any(), anyInt())).thenReturn(List.of(stuck));
         CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
         failed.completeExceptionally(new RuntimeException("broker down"));
         when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);

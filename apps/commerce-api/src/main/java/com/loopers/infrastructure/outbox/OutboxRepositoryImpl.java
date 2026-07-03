@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @RequiredArgsConstructor
@@ -20,8 +21,13 @@ public class OutboxRepositoryImpl implements OutboxRepository {
     }
 
     @Override
-    public List<OutboxEvent> findUnpublished(int limit) {
-        return outboxJpaRepository.findByPublishedAtIsNullOrderByIdAsc(PageRequest.of(0, limit));
+    public List<OutboxEvent> findUnpublishedOlderThan(ZonedDateTime threshold, int limit) {
+        return outboxJpaRepository.findByPublishedAtIsNullAndCreatedAtLessThanOrderByIdAsc(threshold, PageRequest.of(0, limit));
+    }
+
+    @Override
+    public List<OutboxEvent> findUnpublishedByAggregateId(Long aggregateId) {
+        return outboxJpaRepository.findByPublishedAtIsNullAndAggregateIdOrderByIdAsc(aggregateId);
     }
 
     @Override
