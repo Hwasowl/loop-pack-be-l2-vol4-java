@@ -7,6 +7,7 @@ import com.loopers.interfaces.api.coupon.dto.IssueCouponV1Response;
 import com.loopers.interfaces.api.coupon.dto.MyCouponV1Response;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public interface CouponV1ApiSpec {
         summary = "선착순 발급 요청 결과 조회",
         description = "requestId로 발급 결과를 조회합니다. PENDING(처리 전)/ISSUED/SOLD_OUT/DUPLICATE/EXPIRED."
     )
-    ApiResponse<CouponIssueStatusV1Response> getIssueStatus(AuthUser authUser, String requestId);
+    ApiResponse<CouponIssueStatusV1Response> getIssueStatus(AuthUser authUser, @NotBlank String requestId);
 
     @Operation(
         summary = "내 쿠폰 목록 조회",

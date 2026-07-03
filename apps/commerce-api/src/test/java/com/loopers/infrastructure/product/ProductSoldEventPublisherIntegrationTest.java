@@ -5,6 +5,7 @@ import com.loopers.domain.common.Money;
 import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderRepository;
+import com.loopers.domain.order.OrderStatus;
 import com.loopers.domain.payment.CardType;
 import com.loopers.domain.payment.PaymentModel;
 import com.loopers.domain.payment.PaymentRepository;
@@ -18,9 +19,11 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -31,6 +34,7 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
  * 결제 확정(AFTER_COMMIT) → 주문 라인아이템별 PRODUCT_SOLD 발행 배선 검증.
@@ -90,5 +94,26 @@ class ProductSoldEventPublisherIntegrationTest {
         assertThat(sold)
             .extracting(CatalogEventPayload::productId, CatalogEventPayload::quantity)
             .containsExactlyInAnyOrder(tuple(100L, 2), tuple(200L, 3));
+    }
+
+    @DisplayName("판매 이벤트 발행이 실패해도 결제 확정은 롤백되지 않고 주문은 PAID로 유지된다(유실 허용)")
+    @Test
+    void keepsConfirm_whenPublishFails() {
+        // given - catalog-events 발행이 실패 Future를 반환하도록
+        CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("broker down"));
+        when(kafkaTemplate.send(eq(KafkaTopics.CATALOG_EVENTS), any(), any())).thenReturn(failed);
+        OrderModel order = orderRepository.save(new OrderModel(
+            USER_ID, List.of(new OrderItem(100L, "상품-100", 1_000L, 1)), null, Money.ZERO));
+        PaymentModel payment = new PaymentModel(order.getId(), USER_ID, CardType.SAMSUNG, order.getFinalAmount());
+        payment.assignTransactionKey("tx-pub-fail");
+        paymentRepository.save(payment);
+
+        // when
+        paymentService.confirm("tx-pub-fail", true, null);
+
+        // then - 발행은 시도되지만 실패해도 결제/주문 확정은 유지된다
+        verify(kafkaTemplate, timeout(3000)).send(eq(KafkaTopics.CATALOG_EVENTS), any(), any());
+        assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.PAID);
     }
 }

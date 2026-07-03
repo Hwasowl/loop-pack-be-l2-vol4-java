@@ -111,5 +111,41 @@ class ProductMetricsServiceTest {
             verify(productMetricsRepository, never()).save(any());
             assertThat(existing.getLikeCount()).isEqualTo(7L);
         }
+
+        @DisplayName("마지막 반영 시각과 동일한(이후가 아닌) 스냅샷이면 무시하고 저장하지 않는다")
+        @Test
+        void skips_whenEqualTimestamp() {
+            // given - 기존 행이 T2 시점 스냅샷(7)을 갖고 있다
+            ProductMetrics existing = ProductMetrics.init(100L);
+            existing.applyLikeSnapshot(7L, T2);
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
+
+            // when - 같은 T2 시각의 스냅샷(9)이 재도착
+            productMetricsService.applyLikeSnapshot(100L, 9L, T2);
+
+            // then - eventAt이 '이후'가 아니라 '동일'이면 버린다(경계값)
+            verify(productMetricsRepository, never()).save(any());
+            assertThat(existing.getLikeCount()).isEqualTo(7L);
+        }
+    }
+
+    @DisplayName("조회 수를 집계할 때")
+    @Nested
+    class ApplyView {
+
+        @DisplayName("기존 metrics가 없으면 새로 생성해 view_count를 1 증가시킨다")
+        @Test
+        void addsView_whenNotExists() {
+            // given
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
+
+            // when
+            productMetricsService.applyView(100L);
+
+            // then
+            ArgumentCaptor<ProductMetrics> captor = ArgumentCaptor.forClass(ProductMetrics.class);
+            verify(productMetricsRepository).save(captor.capture());
+            assertThat(captor.getValue().getViewCount()).isEqualTo(1L);
+        }
     }
 }

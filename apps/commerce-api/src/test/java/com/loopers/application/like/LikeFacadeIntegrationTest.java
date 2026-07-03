@@ -143,5 +143,19 @@ class LikeFacadeIntegrationTest {
                 .isInstanceOfSatisfying(CoreException.class, ex ->
                     assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND));
         }
+
+        @DisplayName("실제로 취소되면 유저 행동 로그(UNLIKE) 이벤트가 발행된다")
+        @Test
+        void publishesUserActionEvent_onUnlike() {
+            likeFacade.like(userId, productId);
+            likeFacade.unlike(userId, productId);
+
+            long unlikeActions = applicationEvents.stream(UserActionEvent.class)
+                .filter(e -> "UNLIKE".equals(e.action())
+                    && productId.equals(e.targetId())
+                    && userId.equals(e.userId()))
+                .count();
+            assertThat(unlikeActions).isEqualTo(1);
+        }
     }
 }

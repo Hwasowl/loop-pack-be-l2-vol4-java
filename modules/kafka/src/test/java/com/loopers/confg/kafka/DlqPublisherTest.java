@@ -63,4 +63,21 @@ class DlqPublisherTest {
             .doesNotThrowAnyException();
         verify(kafkaTemplate).send(eq("order-events-dlq"), eq("42"), any());
     }
+
+    @DisplayName("DLQ 발행이 실패한 Future를 반환해도(비동기 실패) 예외를 밖으로 던지지 않는다")
+    @Test
+    void doesNotThrow_whenDlqSendFutureFails() {
+        // given - send는 성공적으로 반환하지만 그 Future가 실패로 완료된다(whenComplete의 ex 분기)
+        DlqPublisher dlqPublisher = new DlqPublisher(kafkaTemplate);
+        CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("async dlq fail"));
+        when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);
+        byte[] value = "payload".getBytes(StandardCharsets.UTF_8);
+        ConsumerRecord<Object, Object> record = new ConsumerRecord<>("order-events", 0, 5L, "42", value);
+
+        // when & then
+        assertThatCode(() -> dlqPublisher.publish("order-events", record, new RuntimeException("boom")))
+            .doesNotThrowAnyException();
+        verify(kafkaTemplate).send(eq("order-events-dlq"), eq("42"), any());
+    }
 }
