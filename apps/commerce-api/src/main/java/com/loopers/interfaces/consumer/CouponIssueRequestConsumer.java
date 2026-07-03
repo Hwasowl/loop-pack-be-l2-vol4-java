@@ -48,6 +48,7 @@ public class CouponIssueRequestConsumer {
                         message.requestId(), message.userId(), message.couponTemplateId(), outcome);
             } catch (Exception e) {
                 // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
+                log.warn("[coupon-issue] 처리 실패 — DLQ 격리 (offset={})", record.offset(), e);
                 dlqPublisher.publish(KafkaTopics.COUPON_ISSUE_REQUESTS, record, e);
             }
         }

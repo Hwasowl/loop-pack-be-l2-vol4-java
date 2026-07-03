@@ -8,6 +8,7 @@ import com.loopers.domain.product.ProductRepository;
 import com.loopers.infrastructure.like.LikeJpaRepository;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,12 +16,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /**
  * 좋아요 관계 동시성 검증. 여러 유저가 같은 상품에 동시에 좋아요해도 product_like 행이 정확히 사람 수만큼 생겨야 한다.
@@ -46,6 +50,11 @@ class LikeConcurrencyIntegrationTest {
 
     @MockitoBean
     private KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @BeforeEach
+    void stubKafka() {
+        doReturn(CompletableFuture.completedFuture(null)).when(kafkaTemplate).send(any(), any(), any());
+    }
 
     @AfterEach
     void tearDown() {

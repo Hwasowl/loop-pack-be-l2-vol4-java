@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -16,9 +17,9 @@ import java.time.ZonedDateTime;
 
 @Getter
 @Entity
-@Table(name = "product_like", uniqueConstraints = {
-    @UniqueConstraint(name = "uq_product_like_user_product", columnNames = {"user_id", "product_id"})
-})
+@Table(name = "product_like",
+    uniqueConstraints = @UniqueConstraint(name = "uq_product_like_user_product", columnNames = {"user_id", "product_id"}),
+    indexes = @Index(name = "idx_product_like_product", columnList = "product_id"))
 public class LikeModel {
 
     @Id

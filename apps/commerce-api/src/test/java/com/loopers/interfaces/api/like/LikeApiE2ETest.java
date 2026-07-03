@@ -27,8 +27,11 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.LocalDate;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /**
  * 좋아요 API E2E. 좋아요 수 집계는 streamer 소관이므로, 여기서는 API 동작과 관계(product_like) 반영을 검증한다.
@@ -67,6 +70,7 @@ class LikeApiE2ETest {
 
     @BeforeEach
     void setUp() {
+        doReturn(CompletableFuture.completedFuture(null)).when(kafkaTemplate).send(any(), any(), any());
         userFacade.signUp(LOGIN_ID, PASSWORD, "홍길동", LocalDate.of(1990, 1, 15), "test@loopers.com");
         BrandModel brand = brandRepository.save(new BrandModel("Loopers", "감성"));
         productId = productRepository.save(new ProductModel(brand.getId(), "후드", "포근함", 50_000L)).getId();

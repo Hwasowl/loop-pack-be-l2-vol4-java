@@ -39,7 +39,7 @@ public class DlqPublisher {
             });
         } catch (Exception e) {
             // DLQ 발행마저 실패하면 원본 메시지는 로그로만 남긴다(무한 재시도로 파티션을 막지 않는다).
-            log.error("[DLQ] 발행 실패 topic={} key={}: {} / 원본: {}", dlqTopic, key, e.getMessage(), payload);
+            log.error("[DLQ] 발행 실패 topic={} key={}: {} / 원본 길이={}", dlqTopic, key, e.getMessage(), payload == null ? 0 : payload.length());
         }
     }
 

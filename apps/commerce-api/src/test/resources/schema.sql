@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS product_metrics (
     like_count  BIGINT NOT NULL DEFAULT 0,
     sales_count BIGINT NOT NULL DEFAULT 0,
     view_count  BIGINT NOT NULL DEFAULT 0,
-    updated_at  TIMESTAMP
+    updated_at  TIMESTAMP NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS event_handled (

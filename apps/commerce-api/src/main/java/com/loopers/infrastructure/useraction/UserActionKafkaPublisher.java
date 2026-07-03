@@ -32,11 +32,11 @@ public class UserActionKafkaPublisher {
             kafkaTemplate.send(KafkaTopics.USER_ACTIONS, key, event)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
-                        log.warn("유저 행동 로그 발행 실패(async) (action={}, targetId={}): {}", event.action(), event.targetId(), ex.getMessage());
+                        log.warn("유저 행동 로그 발행 실패(async) (action={}, targetId={})", event.action(), event.targetId(), ex);
                     }
                 });
         } catch (Exception e) {
-            log.warn("유저 행동 로그 발행 실패 (action={}, targetId={}): {}", event.action(), event.targetId(), e.getMessage());
+            log.warn("유저 행동 로그 발행 실패 (action={}, targetId={})", event.action(), event.targetId(), e);
         }
     }
 }

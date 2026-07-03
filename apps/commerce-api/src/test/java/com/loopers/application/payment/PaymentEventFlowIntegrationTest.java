@@ -16,6 +16,7 @@ import com.loopers.domain.stock.StockModel;
 import com.loopers.domain.stock.StockRepository;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -25,9 +26,12 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /** 테스트에 트랜잭션을 걸지 않는다 — confirm()이 커밋돼야 AFTER_COMMIT 리스너가 발화하기 때문. */
 @SpringBootTest
@@ -50,6 +54,11 @@ class PaymentEventFlowIntegrationTest {
     // 결제 성공 시 판매 이벤트 발행(ProductSoldEventPublisher)이 실제 브로커로 나가지 않게 격리한다.
     @MockitoBean
     private KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @BeforeEach
+    void stubKafka() {
+        doReturn(CompletableFuture.completedFuture(null)).when(kafkaTemplate).send(any(), any(), any());
+    }
 
     @AfterEach
     void tearDown() {

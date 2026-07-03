@@ -19,7 +19,7 @@ import java.util.List;
 /**
  * order-events(결제 확정) 소비 → 주문 반영. Outbox가 발행을 보장하고, 여기선 at-least-once로 받는다.
  * 핸들러가 주문 status 가드로 멱등하므로 중복 전달돼도 안전(Inbox 불필요).
- * 테스트(브로커 없음)에서는 OrderPaymentEventListener(in-process)가 대신 처리한다 — @Profile 분기.
+ * 테스트(브로커 없음)에서는 OrderPaymentEventListener(in-process)가 대신 처리한다 — payment.order-consumer 프로퍼티로 분기(@ConditionalOnProperty).
  * streamer의 기본 그룹과 섞이지 않도록 groupId를 명시한다.
  */
 @Slf4j
@@ -47,6 +47,7 @@ public class OrderEventsConsumer {
                 }
             } catch (Exception e) {
                 // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
+                log.warn("[order-events] 처리 실패 — DLQ 격리 (offset={})", record.offset(), e);
                 dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, record, e);
             }
         }

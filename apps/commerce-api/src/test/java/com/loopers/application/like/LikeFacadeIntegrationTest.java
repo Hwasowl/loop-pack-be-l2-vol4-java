@@ -21,8 +21,12 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
+import java.util.concurrent.CompletableFuture;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /**
  * LikeFacade 통합 — Like 관계(product_like) 저장과 멱등/존재검증 흐름을 검증한다.
@@ -59,6 +63,7 @@ class LikeFacadeIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        doReturn(CompletableFuture.completedFuture(null)).when(kafkaTemplate).send(any(), any(), any());
         userId = 1L;
         BrandModel brand = brandRepository.save(new BrandModel("Loopers", "감성"));
         ProductModel product = productRepository.save(new ProductModel(brand.getId(), "후드", "포근함", 49_000L));

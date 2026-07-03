@@ -55,6 +55,7 @@ public class OutboxRelay {
             } catch (Exception e) {
                 // 역직렬화 실패(포이즌)는 재시도해도 영영 실패 → DLQ로 격리하고 FAILED 표시(재폴링 제외).
                 // 이걸 break로 막으면 뒤의 정상 이벤트 전체가 영구히 멈춘다.
+                log.error("outbox 역직렬화 실패 — DLQ 격리 (id={}, orderId={})", event.getId(), event.getAggregateId(), e);
                 dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
                 outboxRepository.markFailed(event.getId());
                 continue;
@@ -69,7 +70,7 @@ public class OutboxRelay {
                 outboxRepository.incrementRetryCount(event.getId());
                 if (event.sendFailureExceeded(MAX_SEND_RETRY)) {
                     // 역직렬화는 되지만 send가 반복 실패 → DLQ로 격리하고 발행 처리해 뒤 이벤트가 영영 막히지 않게 한다.
-                    log.error("outbox 발행 {}회 초과 — DLQ 격리 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId());
+                    log.error("outbox 발행 {}회 초과 — DLQ 격리 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId(), e);
                     dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
                     outboxRepository.markFailed(event.getId());
                     continue;

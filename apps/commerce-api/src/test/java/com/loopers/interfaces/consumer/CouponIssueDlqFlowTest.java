@@ -20,6 +20,7 @@ import org.springframework.kafka.test.utils.KafkaTestUtils;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -52,7 +53,7 @@ class CouponIssueDlqFlowTest {
     @Test
     void routesPoisonMessageToDlq() throws Exception {
         // given - CouponIssueMessage로 매핑 불가한 페이로드(JSON 문자열)
-        kafkaTemplate.send("coupon-issue-requests", "1", "poison-not-an-object").get();
+        kafkaTemplate.send("coupon-issue-requests", "1", "poison-not-an-object").get(5, TimeUnit.SECONDS);
 
         // when - DLQ 토픽을 구독해 격리된 메시지를 읽는다
         Map<String, Object> props = KafkaTestUtils.consumerProps("dlq-verifier", "true", broker);

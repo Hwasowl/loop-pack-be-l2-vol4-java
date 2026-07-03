@@ -33,12 +33,12 @@ public class ProductViewEventPublisher {
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, event.productId().toString(), payload)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
-                        log.warn("조회 이벤트 발행 실패(async) (productId={}): {}", event.productId(), ex.getMessage());
+                        log.warn("조회 이벤트 발행 실패(async) (productId={})", event.productId(), ex);
                     }
                 });
         } catch (Exception e) {
             // 조회 집계는 부가 기능이라 발행 실패가 상세 조회(본 기능)를 깨면 안 된다. 유실은 근사 지표라 감수한다.
-            log.warn("조회 이벤트 발행 실패 (productId={}): {}", event.productId(), e.getMessage());
+            log.warn("조회 이벤트 발행 실패 (productId={})", event.productId(), e);
         }
     }
 }

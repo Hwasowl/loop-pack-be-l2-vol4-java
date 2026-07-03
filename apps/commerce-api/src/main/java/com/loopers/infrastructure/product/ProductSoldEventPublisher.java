@@ -37,12 +37,12 @@ public class ProductSoldEventPublisher {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
     public void on(PaymentCompleted event) {
-        orderRepository.findById(event.orderId()).ifPresent(order -> {
+        orderRepository.findById(event.orderId()).ifPresentOrElse(order -> {
             String occurredAt = ZonedDateTime.now().toString();
             for (OrderItem item : order.getItems()) {
                 publish(item, occurredAt);
             }
-        });
+        }, () -> log.warn("결제 완료 이벤트를 받았으나 주문을 찾을 수 없음 — 데이터 불일치 의심 (orderId={})", event.orderId()));
     }
 
     private void publish(OrderItem item, String occurredAt) {
@@ -52,12 +52,12 @@ public class ProductSoldEventPublisher {
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, item.getProductId().toString(), payload)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
-                        log.warn("판매 이벤트 발행 실패(async) (productId={}, orderItemId={}): {}", item.getProductId(), item.getId(), ex.getMessage());
+                        log.warn("판매 이벤트 발행 실패(async) (productId={}, orderItemId={})", item.getProductId(), item.getId(), ex);
                     }
                 });
         } catch (Exception e) {
             // 결제는 이미 커밋됐다. 발행 실패로 결제 확정을 되돌리지 않고 집계 이벤트만 버린다(유실 허용).
-            log.warn("판매 이벤트 발행 실패 (productId={}, orderItemId={}): {}", item.getProductId(), item.getId(), e.getMessage());
+            log.warn("판매 이벤트 발행 실패 (productId={}, orderItemId={})", item.getProductId(), item.getId(), e);
         }
     }
 }
