@@ -3,11 +3,11 @@ package com.loopers.domain.outbox;
 import com.loopers.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Getter;
-
-import java.time.ZonedDateTime;
 
 /**
  * 트랜잭셔널 아웃박스. 도메인 상태 변경과 "발행할 이벤트"를 같은 트랜잭션에 함께 커밋해
@@ -15,7 +15,7 @@ import java.time.ZonedDateTime;
  */
 @Getter
 @Entity
-@Table(name = "outbox", indexes = @Index(name = "idx_outbox_unpublished", columnList = "published_at, id"))
+@Table(name = "outbox", indexes = @Index(name = "idx_outbox_status", columnList = "status, created_at, id"))
 public class OutboxEvent extends BaseEntity {
 
     /** 파티션 키로 쓰는 애그리거트 식별자 (order-events는 orderId). */
@@ -28,9 +28,10 @@ public class OutboxEvent extends BaseEntity {
     @Column(name = "payload", nullable = false, length = 2000)
     private String payload;
 
-    /** null이면 미발행. Relay가 Kafka ack 확인 후 채운다. */
-    @Column(name = "published_at")
-    private ZonedDateTime publishedAt;
+    /** 발행 상태. PENDING(미발행) → PUBLISHED(발행성공) / FAILED(반복실패로 DLQ 격리). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private OutboxStatus status = OutboxStatus.PENDING;
 
     /** 발행(send) 실패 누적 횟수. 임계 초과 시 DLQ로 격리한다. */
     @Column(name = "retry_count", nullable = false)

@@ -5,6 +5,7 @@ import com.loopers.domain.order.OrderItem;
 import com.loopers.domain.order.OrderModel;
 import com.loopers.domain.order.OrderRepository;
 import com.loopers.domain.outbox.OutboxEvent;
+import com.loopers.domain.outbox.OutboxStatus;
 import com.loopers.domain.payment.CardType;
 import com.loopers.domain.payment.PaymentModel;
 import com.loopers.domain.payment.PaymentRepository;
@@ -72,7 +73,7 @@ class PaymentOutboxIntegrationTest {
         assertAll(
             () -> assertThat(row.getEventType()).isEqualTo("PAYMENT_COMPLETED"),
             () -> assertThat(row.getAggregateId()).isEqualTo(order.getId()),
-            () -> assertThat(row.getPublishedAt()).isNull()
+            () -> assertThat(row.getStatus()).isEqualTo(OutboxStatus.PENDING)
         );
     }
 }

@@ -39,8 +39,8 @@ public class OutboxRelay {
     private final ObjectMapper objectMapper;
     private final DlqPublisher dlqPublisher;
 
-    /** 즉시발행(AFTER_COMMIT)이 채가도록 두는 유예. 이 시간이 지난 미발행 행만 백스톱으로 줍는다. */
-    @Value("${outbox.relay.backstop-grace-ms:10000}")
+    /** 즉시발행(AFTER_COMMIT)이 채가도록 두는 유예. 이 시간이 지난 미발행 행만 백스톱으로 줍는다(29CM의 10분과 동일 개념). */
+    @Value("${outbox.relay.backstop-grace-ms:600000}")
     private long backstopGraceMs;
 
     @Scheduled(fixedDelayString = "${outbox.relay.fixed-delay-ms:2000}")
@@ -53,10 +53,10 @@ public class OutboxRelay {
             try {
                 message = objectMapper.readValue(event.getPayload(), OrderEventMessage.class);
             } catch (Exception e) {
-                // 역직렬화 실패(포이즌)는 재시도해도 영영 실패 → DLQ로 격리하고 발행 처리(스킵).
+                // 역직렬화 실패(포이즌)는 재시도해도 영영 실패 → DLQ로 격리하고 FAILED 표시(재폴링 제외).
                 // 이걸 break로 막으면 뒤의 정상 이벤트 전체가 영구히 멈춘다.
                 dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
-                outboxRepository.markPublished(event.getId());
+                outboxRepository.markFailed(event.getId());
                 continue;
             }
             try {
@@ -71,7 +71,7 @@ public class OutboxRelay {
                     // 역직렬화는 되지만 send가 반복 실패 → DLQ로 격리하고 발행 처리해 뒤 이벤트가 영영 막히지 않게 한다.
                     log.error("outbox 발행 {}회 초과 — DLQ 격리 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId());
                     dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
-                    outboxRepository.markPublished(event.getId());
+                    outboxRepository.markFailed(event.getId());
                     continue;
                 }
                 // 일시적 발행 실패(브로커 다운 등) → 표시 안 함. 순서 보존 위해 이번 배치는 중단, 다음 폴링에서 재시도.

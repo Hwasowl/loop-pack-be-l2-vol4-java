@@ -15,6 +15,9 @@ public interface OutboxRepository {
 
     void markPublished(Long id);
 
+    /** 반복 실패로 DLQ 격리한 행을 FAILED로 표시(재폴링 제외 + 성공과 구분). */
+    void markFailed(Long id);
+
     /** 발행 실패 시 재시도 횟수를 1 증가시킨다(임계 초과 판정용). */
     void incrementRetryCount(Long id);
 }
