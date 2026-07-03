@@ -20,12 +20,12 @@ public interface OutboxJpaRepository extends JpaRepository<OutboxEvent, Long> {
 
     /** 상태 전이는 행별 짧은 트랜잭션으로 — 릴레이가 Kafka I/O를 트랜잭션 밖에서 하도록. */
     @Transactional
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update OutboxEvent o set o.status = :status where o.id = :id")
     void updateStatus(@Param("id") Long id, @Param("status") OutboxStatus status);
 
     @Transactional
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update OutboxEvent o set o.retryCount = o.retryCount + 1 where o.id = :id")
     void incrementRetryCount(@Param("id") Long id);
 }

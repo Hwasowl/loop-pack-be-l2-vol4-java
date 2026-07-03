@@ -36,6 +36,10 @@ spring:
       shutdown:
         await-termination: true
         await-termination-period: 20s
+    # @Scheduled 기본 스케줄러는 단일 스레드라, 느린 아웃박스 릴레이가 결제 복구 스케줄러를 막는다 → 풀을 넓힌다.
+    scheduling:
+      pool:
+        size: 4
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
