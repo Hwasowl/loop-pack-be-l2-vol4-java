@@ -82,6 +82,8 @@ class OutboxRelayTest {
         // then - 표시하지 않고, 첫 실패에서 중단해 둘째 행은 발행 시도조차 안 한다(순서 보장)
         verify(outboxRepository, never()).markPublished(anyLong());
         verify(kafkaTemplate, times(1)).send(anyString(), any(), any());
+        // 실패는 재시도 상태로 남긴다 — 다음 폴링에서 임계 판단이 이어지도록 retryCount를 증가시킨다.
+        verify(outboxRepository, times(1)).incrementRetryCount(anyLong());
     }
 
     @DisplayName("역직렬화 실패(포이즌) 행은 DLQ로 격리하고, 뒤의 정상 행은 계속 발행한다")
@@ -104,7 +106,7 @@ class OutboxRelayTest {
         verify(outboxRepository, times(1)).markFailed(anyLong());
     }
 
-    @DisplayName("발행이 임계 횟수를 넘도록 반복 실패하면 그 행을 DLQ로 격리하고 발행 완료로 표시한다")
+    @DisplayName("발행이 임계 횟수를 넘도록 반복 실패하면 그 행을 DLQ로 격리하고 FAILED로 표시한다(PUBLISHED 아님)")
     @Test
     void escalatesToDlq_whenSendFailsRepeatedly() {
         // given - 이미 임계(5회)까지 실패가 누적된 행 — 이번 실패로 임계를 넘긴다
@@ -120,8 +122,10 @@ class OutboxRelayTest {
         // when
         relay.relay();
 
-        // then - 임계 초과라 break가 아니라 DLQ 격리 + 발행완료 표시
+        // then - 임계 초과라 break가 아니라 DLQ 격리 + FAILED 표시(PUBLISHED로 표시하지 않는다)
         verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), anyString(), any());
+        verify(outboxRepository).incrementRetryCount(anyLong());
         verify(outboxRepository).markFailed(anyLong());
+        verify(outboxRepository, never()).markPublished(anyLong());
     }
 }

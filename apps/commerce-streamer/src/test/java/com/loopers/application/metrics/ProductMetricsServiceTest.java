@@ -147,5 +147,21 @@ class ProductMetricsServiceTest {
             verify(productMetricsRepository).save(captor.capture());
             assertThat(captor.getValue().getViewCount()).isEqualTo(1L);
         }
+
+        @DisplayName("기존 metrics가 있으면 그 view_count를 기존값+1로 증가시켜 저장한다")
+        @Test
+        void incrementsView_whenExists() {
+            // given - 이미 4회 조회된 행이 있다
+            ProductMetrics existing = ProductMetrics.init(100L);
+            existing.addView(4L);
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
+
+            // when
+            productMetricsService.applyView(100L);
+
+            // then - 조회 이벤트는 eventId가 없어 멱등 처리하지 않는다(append 집계) → 기존값+1
+            verify(productMetricsRepository).save(existing);
+            assertThat(existing.getViewCount()).isEqualTo(5L);
+        }
     }
 }

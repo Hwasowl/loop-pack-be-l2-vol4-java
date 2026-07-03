@@ -79,7 +79,7 @@ class DlqReplayFlowTest {
             ConsumerRecord<byte[], byte[]> record =
                 KafkaTestUtils.getSingleRecord(consumer, KafkaTopics.CATALOG_EVENTS, Duration.ofSeconds(10));
 
-            assertThat(new String(record.key())).contains("100");
+            assertThat(new String(record.key())).isEqualTo("100");
             JsonNode payload = objectMapper.readTree(record.value());
             assertThat(payload.get("eventType").asText()).isEqualTo("PRODUCT_SOLD");
             assertThat(payload.get("productId").asLong()).isEqualTo(100L);
