@@ -35,7 +35,8 @@ public class UserActionConsumer {
         for (ConsumerRecord<Object, Object> record : records) {
             try {
                 UserActionMessage action = objectMapper.readValue((byte[]) record.value(), UserActionMessage.class);
-                log.info("[user-action] userId={} action={} targetId={} at={}",
+                // 유저 식별자가 포함된 고볼륨 로그 — 운영 기본(INFO)에서는 남기지 않고 진단 시 DEBUG로만 확인한다.
+                log.debug("[user-action] userId={} action={} targetId={} at={}",
                         action.userId(), action.action(), action.targetId(), action.occurredAt());
             } catch (Exception e) {
                 // 역직렬화·처리 실패 메시지는 DLQ로 격리한다 — 파티션을 막지 않고 다음 메시지를 계속 처리한다.
