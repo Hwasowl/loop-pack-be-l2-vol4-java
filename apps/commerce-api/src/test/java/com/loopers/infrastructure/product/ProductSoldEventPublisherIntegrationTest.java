@@ -25,7 +25,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -72,16 +74,20 @@ class ProductSoldEventPublisherIntegrationTest {
         paymentService.confirm("tx-sold", true, null);
 
         // then - 상품 2건에 대해 각각 발행되고, 타입/수량/키가 상품별로 맞다
-        // 발행은 @Async라 다른 스레드에서 일어나므로 timeout으로 완료를 기다린다.
-        ArgumentCaptor<Object> valueCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(kafkaTemplate, timeout(3000).times(2)).send(eq(KafkaTopics.CATALOG_EVENTS), any(), valueCaptor.capture());
+        // 발행은 @Async라 timeout으로 대기한다. 같은 catalog-events에 다른 publisher(좋아요 등)의
+        // 이벤트가 섞일 수 있으므로 PRODUCT_SOLD만 필터해 검증한다.
+        verify(kafkaTemplate, timeout(3000).times(2)).send(eq(KafkaTopics.CATALOG_EVENTS), any(),
+            argThat(v -> v instanceof CatalogEventPayload p && "PRODUCT_SOLD".equals(p.eventType())));
 
-        List<CatalogEventPayload> payloads = valueCaptor.getAllValues().stream()
+        ArgumentCaptor<Object> valueCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(kafkaTemplate, atLeast(2)).send(eq(KafkaTopics.CATALOG_EVENTS), any(), valueCaptor.capture());
+        List<CatalogEventPayload> sold = valueCaptor.getAllValues().stream()
             .map(CatalogEventPayload.class::cast)
+            .filter(p -> "PRODUCT_SOLD".equals(p.eventType()))
             .toList();
-        assertThat(payloads).allSatisfy(p -> assertThat(p.eventType()).isEqualTo("PRODUCT_SOLD"));
-        assertThat(payloads).allSatisfy(p -> assertThat(p.eventId()).startsWith("sold-"));
-        assertThat(payloads)
+        assertThat(sold).hasSize(2);
+        assertThat(sold).allSatisfy(p -> assertThat(p.eventId()).startsWith("sold-"));
+        assertThat(sold)
             .extracting(CatalogEventPayload::productId, CatalogEventPayload::quantity)
             .containsExactlyInAnyOrder(tuple(100L, 2), tuple(200L, 3));
     }
