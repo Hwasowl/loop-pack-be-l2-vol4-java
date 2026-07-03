@@ -19,4 +19,9 @@ public interface OutboxJpaRepository extends JpaRepository<OutboxEvent, Long> {
     @Modifying
     @Query("update OutboxEvent o set o.publishedAt = CURRENT_TIMESTAMP where o.id = :id")
     void markPublished(@Param("id") Long id);
+
+    @Transactional
+    @Modifying
+    @Query("update OutboxEvent o set o.retryCount = o.retryCount + 1 where o.id = :id")
+    void incrementRetryCount(@Param("id") Long id);
 }

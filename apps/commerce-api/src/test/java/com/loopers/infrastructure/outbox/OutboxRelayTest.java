@@ -102,4 +102,25 @@ class OutboxRelayTest {
         // 포이즌도 DLQ 격리 후 발행완료로 표시된다 — 발행(send)은 1건뿐인데 표시는 2건(포이즌+정상)
         verify(outboxRepository, times(2)).markPublished(anyLong());
     }
+
+    @DisplayName("발행이 임계 횟수를 넘도록 반복 실패하면 그 행을 DLQ로 격리하고 발행 완료로 표시한다")
+    @Test
+    void escalatesToDlq_whenSendFailsRepeatedly() {
+        // given - 이미 임계(5회)까지 실패가 누적된 행 — 이번 실패로 임계를 넘긴다
+        OutboxEvent stuck = event(9L);
+        for (int i = 0; i < 5; i++) {
+            stuck.recordSendFailure();
+        }
+        when(outboxRepository.findUnpublished(anyInt())).thenReturn(List.of(stuck));
+        CompletableFuture<SendResult<Object, Object>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("broker down"));
+        when(kafkaTemplate.send(anyString(), any(), any())).thenReturn(failed);
+
+        // when
+        relay.relay();
+
+        // then - 임계 초과라 break가 아니라 DLQ 격리 + 발행완료 표시
+        verify(dlqPublisher).publish(eq(KafkaTopics.ORDER_EVENTS), eq("9"), anyString(), any());
+        verify(outboxRepository).markPublished(anyLong());
+    }
 }

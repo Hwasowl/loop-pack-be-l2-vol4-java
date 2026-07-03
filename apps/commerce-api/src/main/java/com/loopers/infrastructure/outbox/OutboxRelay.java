@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 public class OutboxRelay {
 
     private static final int BATCH_SIZE = 100;
+    private static final int MAX_SEND_RETRY = 5;
 
     private final OutboxRepository outboxRepository;
     private final KafkaTemplate<Object, Object> kafkaTemplate;
@@ -55,8 +56,17 @@ public class OutboxRelay {
                 kafkaTemplate.send(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), message).get(5, TimeUnit.SECONDS);
                 outboxRepository.markPublished(event.getId());
             } catch (Exception e) {
+                event.recordSendFailure();
+                outboxRepository.incrementRetryCount(event.getId());
+                if (event.sendFailureExceeded(MAX_SEND_RETRY)) {
+                    // 역직렬화는 되지만 send가 반복 실패 → DLQ로 격리하고 발행 처리해 뒤 이벤트가 영영 막히지 않게 한다.
+                    log.error("outbox 발행 {}회 초과 — DLQ 격리 (id={}, orderId={})", event.getRetryCount(), event.getId(), event.getAggregateId());
+                    dlqPublisher.publish(KafkaTopics.ORDER_EVENTS, event.getAggregateId().toString(), event.getPayload(), e);
+                    outboxRepository.markPublished(event.getId());
+                    continue;
+                }
                 // 일시적 발행 실패(브로커 다운 등) → 표시 안 함. 순서 보존 위해 이번 배치는 중단, 다음 폴링에서 재시도.
-                log.warn("outbox 발행 실패 (id={}, orderId={}): {}", event.getId(), event.getAggregateId(), e.getMessage());
+                log.warn("outbox 발행 실패 (id={}, orderId={}, 재시도={}): {}", event.getId(), event.getAggregateId(), event.getRetryCount(), e.getMessage());
                 break;
             }
         }

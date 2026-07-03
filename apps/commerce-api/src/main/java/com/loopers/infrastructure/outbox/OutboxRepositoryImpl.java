@@ -28,4 +28,9 @@ public class OutboxRepositoryImpl implements OutboxRepository {
     public void markPublished(Long id) {
         outboxJpaRepository.markPublished(id);
     }
+
+    @Override
+    public void incrementRetryCount(Long id) {
+        outboxJpaRepository.incrementRetryCount(id);
+    }
 }

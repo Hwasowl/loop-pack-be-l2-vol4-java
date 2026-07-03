@@ -32,6 +32,10 @@ public class OutboxEvent extends BaseEntity {
     @Column(name = "published_at")
     private ZonedDateTime publishedAt;
 
+    /** 발행(send) 실패 누적 횟수. 임계 초과 시 DLQ로 격리한다. */
+    @Column(name = "retry_count", nullable = false)
+    private int retryCount;
+
     protected OutboxEvent() {
     }
 
@@ -39,5 +43,15 @@ public class OutboxEvent extends BaseEntity {
         this.aggregateId = aggregateId;
         this.eventType = eventType;
         this.payload = payload;
+    }
+
+    /** 발행(send) 실패를 기록한다. */
+    public void recordSendFailure() {
+        this.retryCount++;
+    }
+
+    /** 발행 실패가 임계 횟수를 초과했는지 — 초과 시 DLQ로 격리한다. */
+    public boolean sendFailureExceeded(int maxRetry) {
+        return this.retryCount > maxRetry;
     }
 }
