@@ -18,8 +18,8 @@ public class CouponAdminService {
     private final IssuedCouponRepository issuedCouponRepository;
 
     @Transactional
-    public CouponTemplate create(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt) {
-        return couponTemplateRepository.save(new CouponTemplate(name, type, discountValue, minOrderAmount, expiredAt));
+    public CouponTemplate create(String name, CouponType type, long discountValue, Long minOrderAmount, ZonedDateTime expiredAt, Integer totalQuantity) {
+        return couponTemplateRepository.save(new CouponTemplate(name, type, discountValue, minOrderAmount, expiredAt, totalQuantity));
     }
 
     @Transactional(readOnly = true)

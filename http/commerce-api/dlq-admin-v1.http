@@ -1,0 +1,22 @@
+### DLQ 재처리 — order-events (어드민 인증 필요: X-Loopers-Ldap)
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=order-events
+X-Loopers-Ldap: ops
+
+### DLQ 재처리 — coupon-issue-requests
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=coupon-issue-requests
+X-Loopers-Ldap: ops
+
+### DLQ 재처리 — catalog-events
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=catalog-events
+X-Loopers-Ldap: ops
+
+### DLQ 재처리 — user-actions
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=user-actions
+X-Loopers-Ldap: ops
+
+### 화이트리스트 밖 토픽 → 400 BAD_REQUEST
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=arbitrary-topic
+X-Loopers-Ldap: ops
+
+### 인증 헤더 누락 → 401 UNAUTHORIZED
+POST {{commerce-api}}/api-admin/v1/dlq/replay?topic=order-events

@@ -17,4 +17,6 @@ public interface ProductRepository {
     Page<ProductModel> search(Long brandId, SortOption sort, Pageable pageable);
     long countByBrandId(Long brandId);
     Map<Long, Long> countByBrandIds(Collection<Long> brandIds);
+    /** 상품별 좋아요 수 (product_metrics 집계). 집계 행이 없는 상품은 결과에서 빠진다. */
+    Map<Long, Long> likeCountsByProductIds(Collection<Long> productIds);
 }

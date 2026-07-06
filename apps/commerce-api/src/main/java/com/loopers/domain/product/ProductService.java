@@ -50,4 +50,9 @@ public class ProductService {
     public Map<Long, Long> countByBrandIds(Collection<Long> brandIds) {
         return productRepository.countByBrandIds(brandIds);
     }
+
+    @Transactional(readOnly = true)
+    public Map<Long, Long> getLikeCounts(Collection<Long> productIds) {
+        return productRepository.likeCountsByProductIds(productIds);
+    }
 }

@@ -51,7 +51,7 @@ public class CouponAdminV1Controller implements CouponAdminV1ApiSpec {
     public ApiResponse<CouponTemplateV1Response> create(@LdapAdmin AdminUser admin, @Valid @RequestBody CreateCouponTemplateV1Request request) {
         CouponTemplateInfo info = couponAdminFacade.create(
             request.name(), request.type(), request.value(), request.minOrderAmount(),
-            request.expiredAt().atZone(ADMIN_ZONE)
+            request.expiredAt().atZone(ADMIN_ZONE), request.totalQuantity()
         );
         return ApiResponse.success(CouponTemplateV1Response.from(info));
     }

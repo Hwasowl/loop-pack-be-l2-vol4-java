@@ -14,11 +14,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all                      # 모든 ISR 적재 확인 후 ack — 메시지 유실 방지
       retries: 3
+      properties:
+        enable.idempotence: true     # 재시도 시 중복 발행 방지 (프로듀서 멱등)
     consumer:
       group-id: loopers-default-consumer
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-serializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.ByteArrayDeserializer
       properties:
         enable-auto-commit: false
     listener:

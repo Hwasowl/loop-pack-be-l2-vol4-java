@@ -19,6 +19,4 @@ public interface PaymentJpaRepository extends JpaRepository<PaymentModel, Long> 
     List<PaymentModel> findAllByStatusAndTransactionKeyIsNullAndCreatedAtBeforeAndDeletedAtIsNull(PaymentStatus status, ZonedDateTime cutoff);
 
     List<PaymentModel> findAllByStatusAndCreatedAtBeforeAndDeletedAtIsNull(PaymentStatus status, ZonedDateTime cutoff);
-
-    List<PaymentModel> findAllByStatusAndUpdatedAtAfterAndDeletedAtIsNull(PaymentStatus status, ZonedDateTime since);
 }
