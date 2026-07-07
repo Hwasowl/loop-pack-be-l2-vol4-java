@@ -12,7 +12,8 @@ public interface OrderV1ApiSpec {
 
     @Operation(
         summary = "주문 생성",
-        description = "상품 항목으로 주문을 생성합니다. 쿠폰은 주문 1건당 1장을 주문 전체 금액에 적용할 수 있습니다."
+        description = "상품 항목으로 주문을 생성합니다. 쿠폰은 주문 1건당 1장을 주문 전체 금액에 적용할 수 있습니다. "
+            + "대기열 게이트가 활성화된 경우 X-Entry-Token 헤더의 유효한 입장 토큰이 필요합니다."
     )
-    ApiResponse<OrderV1Response> placeOrder(AuthUser authUser, PlaceOrderV1Request request);
+    ApiResponse<OrderV1Response> placeOrder(AuthUser authUser, String entryToken, PlaceOrderV1Request request);
 }
