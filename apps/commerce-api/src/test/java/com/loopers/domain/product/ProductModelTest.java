@@ -21,7 +21,7 @@ class ProductModelTest {
     @Nested
     class Create {
 
-        @DisplayName("유효한 모든 필드를 입력하면 상품이 정상 생성되고 좋아요 수는 0으로 초기화된다")
+        @DisplayName("유효한 모든 필드를 입력하면 상품이 정상 생성된다")
         @Test
         void createsProduct_whenAllFieldsAreValid() {
             ProductModel product = new ProductModel(VALID_BRAND_ID, VALID_NAME, VALID_DESCRIPTION, VALID_PRICE);
@@ -30,8 +30,7 @@ class ProductModelTest {
                 () -> assertThat(product.getBrandId()).isEqualTo(VALID_BRAND_ID),
                 () -> assertThat(product.getName()).isEqualTo(VALID_NAME),
                 () -> assertThat(product.getDescription()).isEqualTo(VALID_DESCRIPTION),
-                () -> assertThat(product.getPrice().value()).isEqualTo(VALID_PRICE),
-                () -> assertThat(product.getLikeCount()).isZero()
+                () -> assertThat(product.getPrice().value()).isEqualTo(VALID_PRICE)
             );
         }
 

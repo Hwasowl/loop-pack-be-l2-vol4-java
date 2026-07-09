@@ -16,16 +16,22 @@ import com.loopers.domain.stock.StockModel;
 import com.loopers.domain.stock.StockRepository;
 import com.loopers.utils.DatabaseCleanUp;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doReturn;
 
 /** 테스트에 트랜잭션을 걸지 않는다 — confirm()이 커밋돼야 AFTER_COMMIT 리스너가 발화하기 때문. */
 @SpringBootTest
@@ -36,8 +42,6 @@ class PaymentEventFlowIntegrationTest {
     @Autowired
     private PaymentService paymentService;
     @Autowired
-    private PaymentRecoveryService recoveryService;
-    @Autowired
     private OrderRepository orderRepository;
     @Autowired
     private PaymentRepository paymentRepository;
@@ -47,6 +51,14 @@ class PaymentEventFlowIntegrationTest {
     private IssuedCouponRepository issuedCouponRepository;
     @Autowired
     private DatabaseCleanUp databaseCleanUp;
+    // 결제 성공 시 판매 이벤트 발행(ProductSoldEventPublisher)이 실제 브로커로 나가지 않게 격리한다.
+    @MockitoBean
+    private KafkaTemplate<Object, Object> kafkaTemplate;
+
+    @BeforeEach
+    void stubKafka() {
+        doReturn(CompletableFuture.completedFuture(null)).when(kafkaTemplate).send(any(), any(), any());
+    }
 
     @AfterEach
     void tearDown() {
@@ -74,25 +86,6 @@ class PaymentEventFlowIntegrationTest {
             pendingPayment(order.getId(), order.getFinalAmount(), "tx-success");
 
             paymentService.confirm("tx-success", true, null);
-
-            assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.PAID);
-        }
-    }
-
-    @DisplayName("결제는 SUCCESS인데 주문이 미반영(CREATED)으로 남은 경우")
-    @Nested
-    class ReapplySuccess {
-
-        @DisplayName("복구가 주문을 PAID로 재반영한다")
-        @Test
-        void reappliesOrderPaid() {
-            OrderModel order = orderRepository.save(new OrderModel(USER_ID, List.of(item(100L, 1_000L, 1)), null, Money.ZERO));
-            PaymentModel payment = new PaymentModel(order.getId(), USER_ID, CardType.SAMSUNG, order.getFinalAmount());
-            payment.assignTransactionKey("tx-reapply");
-            payment.markSuccess(); // 이벤트 핸들러가 실패해 주문은 CREATED로 남은 상황 재현
-            paymentRepository.save(payment);
-
-            recoveryService.reapplySuccess();
 
             assertThat(orderRepository.findById(order.getId()).orElseThrow().getStatus()).isEqualTo(OrderStatus.PAID);
         }

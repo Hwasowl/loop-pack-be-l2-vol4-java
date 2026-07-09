@@ -13,6 +13,8 @@ public record CreateCouponTemplateV1Request(
     @NotNull CouponType type,
     @Positive long value,
     @Min(0) Long minOrderAmount,
-    @NotNull LocalDateTime expiredAt
+    @NotNull LocalDateTime expiredAt,
+    /** 선착순 발급 수량 한도. null이면 무제한. */
+    @Positive Integer totalQuantity
 ) {
 }

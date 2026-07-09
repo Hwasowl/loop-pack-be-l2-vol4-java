@@ -8,10 +8,12 @@ import com.loopers.domain.order.OrderService;
 import com.loopers.domain.product.ProductModel;
 import com.loopers.domain.product.ProductService;
 import com.loopers.domain.stock.StockService;
+import com.loopers.domain.useraction.UserActionEvent;
 import com.loopers.domain.user.UserService;
 import com.loopers.support.error.CoreException;
 import com.loopers.support.error.ErrorType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class OrderFacade {
     private final StockService stockService;
     private final OrderService orderService;
     private final CouponService couponService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public OrderInfo placeOrder(Long userId, List<OrderLineCommand> lines, Long couponId) {
@@ -43,6 +46,7 @@ public class OrderFacade {
         Money discount = couponId == null ? Money.ZERO : couponService.use(userId, couponId, totalAmount);
 
         OrderModel saved = orderService.place(userId, items, couponId, discount);
+        eventPublisher.publishEvent(UserActionEvent.of(userId, "ORDER_PLACED", saved.getId()));
         return OrderInfo.from(saved);
     }
 

@@ -22,7 +22,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 상품 + 브랜드 + 재고 조회 합성기. 고객/어드민 Facade가 공유한다.
+ * 상품 + 브랜드 + 재고 + 좋아요 수 조회 합성기. 고객/어드민 Facade가 공유한다.
+ * 좋아요 수는 product_metrics(streamer 집계)에서 조회해 주입한다.
  * 출력 변환(boolean available vs Integer quantity)만 각 Facade에서 처리.
  */
 @RequiredArgsConstructor
@@ -37,7 +38,8 @@ public class ProductCompositionReader {
     public ProductWithDeps getDetail(Long productId) {
         ProductDetail detail = productDetailService.getDetail(productId);
         StockModel stock = stockService.getByProductId(detail.product().getId());
-        return new ProductWithDeps(detail.product(), detail.brand(), stock.getQuantity());
+        long likeCount = productService.getLikeCounts(List.of(productId)).getOrDefault(productId, 0L);
+        return new ProductWithDeps(detail.product(), detail.brand(), stock.getQuantity(), likeCount);
     }
 
     public Page<ProductWithDeps> search(Long brandId, SortOption sort, Pageable pageable) {
@@ -46,6 +48,7 @@ public class ProductCompositionReader {
         List<Long> productIds = products.getContent().stream().map(ProductModel::getId).toList();
         List<Long> brandIds = products.getContent().stream().map(ProductModel::getBrandId).distinct().toList();
         Map<Long, Integer> quantities = stockService.getQuantities(productIds);
+        Map<Long, Long> likeCounts = productService.getLikeCounts(productIds);
         Map<Long, BrandModel> brands = brandService.findAllByIds(brandIds).stream()
             .collect(Collectors.toMap(BrandModel::getId, Function.identity()));
 
@@ -56,7 +59,7 @@ public class ProductCompositionReader {
                 throw new CoreException(ErrorType.INTERNAL_ERROR,
                     "[productId=" + p.getId() + ", brandId=" + p.getBrandId() + "] 참조 브랜드를 찾을 수 없습니다.");
             }
-            return new ProductWithDeps(p, brand, quantities.getOrDefault(p.getId(), 0));
+            return new ProductWithDeps(p, brand, quantities.getOrDefault(p.getId(), 0), likeCounts.getOrDefault(p.getId(), 0L));
         });
     }
 }

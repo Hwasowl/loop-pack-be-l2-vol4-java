@@ -4,4 +4,5 @@ public interface LikeRepository {
     LikeModel save(LikeModel like);
     boolean existsByUserIdAndProductId(Long userId, Long productId);
     int deleteByUserIdAndProductId(Long userId, Long productId);
+    long countByProductId(Long productId);
 }

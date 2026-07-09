@@ -13,7 +13,7 @@ public record ProductInfo(
     Long likeCount,
     boolean available
 ) {
-    public static ProductInfo from(ProductModel product, BrandModel brand, boolean available) {
+    public static ProductInfo from(ProductModel product, BrandModel brand, boolean available, long likeCount) {
         return new ProductInfo(
             product.getId(),
             product.getName(),
@@ -21,7 +21,7 @@ public record ProductInfo(
             product.getPrice().value(),
             product.getBrandId(),
             brand.getName(),
-            product.getLikeCount(),
+            likeCount,
             available
         );
     }

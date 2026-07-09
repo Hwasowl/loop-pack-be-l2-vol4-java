@@ -41,4 +41,9 @@ public class CouponTemplateRepositoryImpl implements CouponTemplateRepository {
     public void deleteById(Long id) {
         couponTemplateJpaRepository.deleteById(id);
     }
+
+    @Override
+    public int increaseIssuedIfAvailable(Long id) {
+        return couponTemplateJpaRepository.increaseIssuedIfAvailable(id);
+    }
 }
