@@ -10,7 +10,8 @@ public record ProductV1Response(
     Long brandId,
     String brandName,
     Long likeCount,
-    boolean available
+    boolean available,
+    Long rank
 ) {
     public static ProductV1Response from(ProductInfo info) {
         return new ProductV1Response(
@@ -21,7 +22,8 @@ public record ProductV1Response(
             info.brandId(),
             info.brandName(),
             info.likeCount(),
-            info.available()
+            info.available(),
+            info.rank()
         );
     }
 }

@@ -11,9 +11,11 @@ public record ProductInfo(
     Long brandId,
     String brandName,
     Long likeCount,
-    boolean available
+    boolean available,
+    Long rank
 ) {
     public static ProductInfo from(ProductModel product, BrandModel brand, boolean available, long likeCount) {
+        // rank는 실시간 값이라 캐시 대상(목록/상세 본문)에서는 비운다 — 조회 시점에 withRank로 덧붙인다.
         return new ProductInfo(
             product.getId(),
             product.getName(),
@@ -22,7 +24,13 @@ public record ProductInfo(
             product.getBrandId(),
             brand.getName(),
             likeCount,
-            available
+            available,
+            null
         );
+    }
+
+    /** 당일 랭킹 순위(랭킹에 없으면 null)를 덧붙인 사본. */
+    public ProductInfo withRank(Long rank) {
+        return new ProductInfo(id, name, description, price, brandId, brandName, likeCount, available, rank);
     }
 }

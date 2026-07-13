@@ -11,6 +11,7 @@ public record CatalogEvent(
         Long userId,
         String occurredAt,
         Integer quantity,
-        Long likeCount
+        Long likeCount,
+        Long unitPrice
 ) {
 }

@@ -21,14 +21,18 @@ public class ProductMetricsService {
      * 좋아요 총량 스냅샷을 소비해 product_metrics.like_count에 최신-우선으로 반영한다.
      * 절대값 덮어쓰기라 중복·유실엔 강하고(다음 스냅샷이 교정), 순서 역전만 occurredAt 비교로 막는다.
      * 그래서 멱등 장부(event_handled)가 필요 없다 — 오래된 이벤트는 모델이 스스로 버린다.
+     * @return 실제로 반영된 좋아요 순증감(new - old). 랭킹 ZSET에 델타로 먹인다. 미반영(오래된 스냅샷)이면 0.
      */
     @Transactional
-    public void applyLikeSnapshot(Long productId, long likeCount, ZonedDateTime occurredAt) {
+    public long applyLikeSnapshot(Long productId, long likeCount, ZonedDateTime occurredAt) {
         ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
                 .orElseGet(() -> ProductMetrics.init(productId));
+        long before = metrics.getLikeCount();
         if (metrics.applyLikeSnapshot(likeCount, occurredAt)) {
             productMetricsRepository.save(metrics);
+            return metrics.getLikeCount() - before;
         }
+        return 0L;
     }
 
     /**
@@ -47,16 +51,18 @@ public class ProductMetricsService {
     /**
      * 판매 이벤트를 소비해 product_metrics.sales_count에 수량을 더한다.
      * 판매량은 조회와 달리 이중집계에 민감하므로 eventId(주문 라인 기반 결정적 키)로 멱등 처리한다.
+     * @return 실제로 반영된 판매 수량. 멱등 중복이면 0 — 랭킹도 이 값을 써 중복 가산을 막는다.
      */
     @Transactional
-    public void applySold(String eventId, Long productId, int quantity) {
+    public long applySold(String eventId, Long productId, int quantity) {
         if (eventHandledRepository.existsByEventId(eventId)) {
-            return;
+            return 0L;
         }
         ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
                 .orElseGet(() -> ProductMetrics.init(productId));
         metrics.addSales(quantity);
         productMetricsRepository.save(metrics);
         eventHandledRepository.save(new EventHandled(eventId));
+        return quantity;
     }
 }

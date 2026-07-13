@@ -1,6 +1,8 @@
 package com.loopers.application.product;
 
 import com.loopers.domain.product.ProductViewed;
+import com.loopers.domain.ranking.RankingKeys;
+import com.loopers.domain.ranking.RankingRepository;
 import com.loopers.domain.useraction.UserActionEvent;
 import com.loopers.support.cache.CacheStore;
 import com.loopers.domain.product.SortOption;
@@ -11,13 +13,19 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 @RequiredArgsConstructor
 @Component
 public class ProductFacade {
 
+    private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+
     private final ProductCompositionReader reader;
     private final CacheStore cacheStore;
     private final ApplicationEventPublisher eventPublisher;
+    private final RankingRepository rankingRepository;
 
     public ProductInfo getProductDetail(Long productId) {
         ProductInfo info = cacheStore.getOrLoad(
@@ -30,7 +38,10 @@ public class ProductFacade {
         eventPublisher.publishEvent(ProductViewed.of(productId));
         // 유저 행동 로그(부가) — 조회 상세는 인증이 없어 userId는 익명(null)이다.
         eventPublisher.publishEvent(UserActionEvent.of(null, "PRODUCT_VIEW", productId));
-        return info;
+        // 순위는 실시간이라 캐시 밖에서 당일 랭킹 키로 조회한다(0-based → 1-based, 랭킹 밖이면 null).
+        String todayKey = RankingKeys.of(LocalDate.now(SEOUL), null);
+        Long rank = rankingRepository.rank(todayKey, productId).map(r -> r + 1).orElse(null);
+        return info.withRank(rank);
     }
 
     public Page<ProductInfo> search(Long brandId, SortOption sort, Pageable pageable) {

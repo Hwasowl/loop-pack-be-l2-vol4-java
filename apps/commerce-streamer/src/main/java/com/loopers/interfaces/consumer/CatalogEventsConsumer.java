@@ -2,6 +2,7 @@ package com.loopers.interfaces.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.loopers.application.metrics.ProductMetricsService;
+import com.loopers.application.ranking.RankingService;
 import com.loopers.confg.kafka.DlqPublisher;
 import com.loopers.confg.kafka.KafkaConfig;
 import com.loopers.confg.kafka.KafkaTopics;
@@ -26,6 +27,7 @@ import java.util.List;
 public class CatalogEventsConsumer {
 
     private final ProductMetricsService productMetricsService;
+    private final RankingService rankingService;
     private final ObjectMapper objectMapper;
     private final DlqPublisher dlqPublisher;
 
@@ -38,18 +40,26 @@ public class CatalogEventsConsumer {
         for (ConsumerRecord<Object, Object> record : records) {
             try {
                 CatalogEvent event = objectMapper.readValue((byte[]) record.value(), CatalogEvent.class);
+                ZonedDateTime occurredAt = ZonedDateTime.parse(event.occurredAt());
                 switch (event.eventType()) {
                     case "PRODUCT_LIKE_COUNT_CHANGED" -> {
                         if (event.likeCount() == null) {
                             throw new IllegalArgumentException("likeCount 없는 좋아요 스냅샷 이벤트: eventId=" + event.eventId());
                         }
-                        productMetricsService.applyLikeSnapshot(
-                                event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
+                        long likeDelta = productMetricsService.applyLikeSnapshot(
+                                event.productId(), event.likeCount(), occurredAt);
+                        rankingService.applyLikeDelta(occurredAt, event.productId(), likeDelta);
                     }
-                    case "PRODUCT_VIEWED" ->
-                            productMetricsService.applyView(event.productId());
-                    case "PRODUCT_SOLD" ->
-                            productMetricsService.applySold(event.eventId(), event.productId(), event.quantity());
+                    case "PRODUCT_VIEWED" -> {
+                        productMetricsService.applyView(event.productId());
+                        rankingService.applyView(occurredAt, event.productId());
+                    }
+                    case "PRODUCT_SOLD" -> {
+                        long soldQuantity = productMetricsService.applySold(
+                                event.eventId(), event.productId(), event.quantity());
+                        long amount = soldQuantity * (event.unitPrice() == null ? 0L : event.unitPrice());
+                        rankingService.applyOrder(occurredAt, event.productId(), amount);
+                    }
                     default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
                 }
             } catch (Exception e) {
