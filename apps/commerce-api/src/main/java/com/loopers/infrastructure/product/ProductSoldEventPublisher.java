@@ -48,7 +48,7 @@ public class ProductSoldEventPublisher {
     private void publish(OrderItem item, String occurredAt) {
         CatalogEventPayload payload = new CatalogEventPayload(
                 "sold-" + item.getId(), TYPE_SOLD, item.getProductId(), null, occurredAt,
-                item.getQuantity(), null, item.getUnitPrice().value());
+                item.getQuantity(), null, null, item.getUnitPrice().value());
         try {
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, item.getProductId().toString(), payload)
                 .whenComplete((result, ex) -> {
