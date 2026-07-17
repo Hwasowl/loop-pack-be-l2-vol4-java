@@ -52,8 +52,8 @@ class ProductMetricsServiceTest {
     void setUp() {
         productMetricsService = new ProductMetricsService(
                 productMetricsRepository, productMetricsHourlyRepository, eventHandledRepository);
-        newBucket = ProductMetricsHourly.init(100L, BUCKET);
-        lenient().when(productMetricsHourlyRepository.findByProductIdAndBucketHour(any(), any()))
+        newBucket = ProductMetricsHourly.init(100L, BUCKET, "SEARCH");
+        lenient().when(productMetricsHourlyRepository.findByProductIdAndBucketHourAndSource(any(), any(), any()))
                 .thenReturn(Optional.empty());
         lenient().when(productMetricsHourlyRepository.save(any())).thenReturn(newBucket);
     }
@@ -204,7 +204,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when
-            productMetricsService.applyView(100L, T);
+            productMetricsService.applyView(100L, T, "SEARCH");
 
             // then
             ArgumentCaptor<ProductMetrics> captor = ArgumentCaptor.forClass(ProductMetrics.class);
@@ -221,7 +221,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
 
             // when
-            productMetricsService.applyView(100L, T);
+            productMetricsService.applyView(100L, T, "SEARCH");
 
             // then - 조회 이벤트는 eventId가 없어 멱등 처리하지 않는다(append 집계) → 기존값+1
             verify(productMetricsRepository).save(existing);
@@ -235,7 +235,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when
-            productMetricsService.applyView(100L, T);
+            productMetricsService.applyView(100L, T, "SEARCH");
 
             // then
             assertThat(newBucket.getViewCount()).isEqualTo(1L);
@@ -253,10 +253,10 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when - Seoul 09:30에 발생
-            productMetricsService.applyView(100L, T);
+            productMetricsService.applyView(100L, T, "SEARCH");
 
             // then - 09:00 버킷을 찾는다
-            verify(productMetricsHourlyRepository).findByProductIdAndBucketHour(100L, BUCKET);
+            verify(productMetricsHourlyRepository).findByProductIdAndBucketHourAndSource(100L, BUCKET, "SEARCH");
         }
 
         @DisplayName("UTC로 들어온 이벤트도 Asia/Seoul로 환산한 시간대 버킷에 기록한다")
@@ -266,30 +266,75 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when
-            productMetricsService.applyView(100L, ZonedDateTime.parse("2026-01-13T00:30:00Z"));
+            productMetricsService.applyView(100L, ZonedDateTime.parse("2026-01-13T00:30:00Z"), "SEARCH");
 
             // then - Seoul 09:00 버킷과 같은 순간을 가리켜야 한다
             ArgumentCaptor<ZonedDateTime> captor = ArgumentCaptor.forClass(ZonedDateTime.class);
-            verify(productMetricsHourlyRepository).findByProductIdAndBucketHour(any(), captor.capture());
+            verify(productMetricsHourlyRepository)
+                    .findByProductIdAndBucketHourAndSource(any(), captor.capture(), any());
             assertThat(captor.getValue().toInstant()).isEqualTo(BUCKET.toInstant());
         }
 
-        @DisplayName("이미 그 시간 버킷이 있으면 새로 만들지 않고 기존 버킷에 누적한다")
+        @DisplayName("이미 그 시간·경로 버킷이 있으면 새로 만들지 않고 기존 버킷에 누적한다")
         @Test
         void reusesExistingBucket() {
             // given - 이미 조회 4건이 쌓인 버킷이 있다
-            ProductMetricsHourly existing = ProductMetricsHourly.init(100L, BUCKET);
+            ProductMetricsHourly existing = ProductMetricsHourly.init(100L, BUCKET, "SEARCH");
             existing.addView(4L);
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
-            when(productMetricsHourlyRepository.findByProductIdAndBucketHour(100L, BUCKET))
+            when(productMetricsHourlyRepository.findByProductIdAndBucketHourAndSource(100L, BUCKET, "SEARCH"))
                     .thenReturn(Optional.of(existing));
 
             // when
-            productMetricsService.applyView(100L, T);
+            productMetricsService.applyView(100L, T, "SEARCH");
 
             // then
             verify(productMetricsHourlyRepository, never()).save(any());
             assertThat(existing.getViewCount()).isEqualTo(5L);
+        }
+    }
+
+    @DisplayName("유입 경로를 나눌 때")
+    @Nested
+    class SourceSeparation {
+
+        @DisplayName("같은 시간·상품이어도 유입 경로가 다르면 다른 버킷에 기록한다")
+        @Test
+        void separatesBucketBySource() {
+            // given - 같은 09:00 버킷이지만 경로가 다르다
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
+
+            // when - 랭킹을 보고 들어온 조회
+            productMetricsService.applyView(100L, T, "RANKING");
+
+            // then - 랭킹 경유는 SEARCH와 갈라져야 나중에 "랭킹 경유는 빼고 재계산"이 가능하다
+            verify(productMetricsHourlyRepository).findByProductIdAndBucketHourAndSource(100L, BUCKET, "RANKING");
+        }
+
+        @DisplayName("경로를 못 받은 조회는 UNKNOWN 버킷에 모은다")
+        @Test
+        void fallsBackToUnknown_whenSourceMissing() {
+            // given
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
+
+            // when - 구버전 발행 측이 보낸, 경로 없는 조회
+            productMetricsService.applyView(100L, T, null);
+
+            // then - 버리지 않고 UNKNOWN으로 남긴다(사실은 기록하고 해석은 읽는 쪽이 한다)
+            verify(productMetricsHourlyRepository).findByProductIdAndBucketHourAndSource(100L, BUCKET, "UNKNOWN");
+        }
+
+        @DisplayName("좋아요·주문은 경로가 없으므로 UNKNOWN 버킷에 기록한다")
+        @Test
+        void usesUnknown_forLikeAndOrder() {
+            // given
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
+
+            // when
+            productMetricsService.applyLikeSnapshot(100L, 7L, 1L, T);
+
+            // then
+            verify(productMetricsHourlyRepository).findByProductIdAndBucketHourAndSource(100L, BUCKET, "UNKNOWN");
         }
     }
 }

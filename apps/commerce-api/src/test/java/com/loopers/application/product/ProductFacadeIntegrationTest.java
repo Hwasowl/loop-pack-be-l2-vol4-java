@@ -7,6 +7,7 @@ import com.loopers.domain.product.LikeCountSeeder;
 import com.loopers.domain.product.ProductModel;
 import com.loopers.domain.product.ProductRepository;
 import com.loopers.domain.product.SortOption;
+import com.loopers.domain.product.ViewSource;
 import com.loopers.domain.stock.StockModel;
 import com.loopers.domain.stock.StockRepository;
 import com.loopers.infrastructure.like.CatalogEventPayload;
@@ -100,7 +101,7 @@ class ProductFacadeIntegrationTest {
         @Test
         void returnsAvailableTrue_withBrandAndLikes() {
             // when
-            ProductInfo info = productFacade.getProductDetail(inStockProductId);
+            ProductInfo info = productFacade.getProductDetail(inStockProductId, ViewSource.UNKNOWN);
 
             // then
             assertAll(
@@ -117,7 +118,7 @@ class ProductFacadeIntegrationTest {
         @Test
         void returnsAvailableFalse_whenStockIsZero() {
             // when
-            ProductInfo info = productFacade.getProductDetail(outOfStockProductId);
+            ProductInfo info = productFacade.getProductDetail(outOfStockProductId, ViewSource.UNKNOWN);
 
             // then
             assertThat(info.available()).isFalse();
@@ -128,7 +129,7 @@ class ProductFacadeIntegrationTest {
         void throwsNotFound_whenProductMissing() {
             // when
             CoreException ex = assertThrows(CoreException.class,
-                () -> productFacade.getProductDetail(99_999L));
+                () -> productFacade.getProductDetail(99_999L, ViewSource.UNKNOWN));
 
             // then
             assertThat(ex.getErrorType()).isEqualTo(ErrorType.NOT_FOUND);
@@ -143,7 +144,7 @@ class ProductFacadeIntegrationTest {
         @Test
         void publishesViewedEvent_onDetail() {
             // when
-            productFacade.getProductDetail(inStockProductId);
+            productFacade.getProductDetail(inStockProductId, ViewSource.UNKNOWN);
 
             // then - Facade → ApplicationEvent → @EventListener → KafkaTemplate 경로가 동기로 이어진다
             ArgumentCaptor<Object> key = ArgumentCaptor.forClass(Object.class);
@@ -162,7 +163,7 @@ class ProductFacadeIntegrationTest {
         @Test
         void doesNotPublish_whenProductMissing() {
             // when
-            assertThrows(CoreException.class, () -> productFacade.getProductDetail(99_999L));
+            assertThrows(CoreException.class, () -> productFacade.getProductDetail(99_999L, ViewSource.UNKNOWN));
 
             // then
             verifyNoInteractions(kafkaTemplate);
@@ -177,12 +178,12 @@ class ProductFacadeIntegrationTest {
         @Test
         void servesStaleLikeCount_withinTtl() {
             // given - 첫 조회로 likeCount=1 캐싱
-            ProductInfo first = productFacade.getProductDetail(inStockProductId);
+            ProductInfo first = productFacade.getProductDetail(inStockProductId, ViewSource.UNKNOWN);
             assertThat(first.likeCount()).isEqualTo(1L);
 
             // when - DB의 likeCount는 2로 증가하지만 캐시는 무효화하지 않는다
             likeCountSeeder.seed(inStockProductId, 2L);
-            ProductInfo cached = productFacade.getProductDetail(inStockProductId);
+            ProductInfo cached = productFacade.getProductDetail(inStockProductId, ViewSource.UNKNOWN);
 
             // then - 캐시 히트라 옛 값(1) 유지 (정확도 계약: TTL 동안 stale 허용)
             assertThat(cached.likeCount()).isEqualTo(1L);
