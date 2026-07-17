@@ -5,7 +5,8 @@ import java.util.Optional;
 
 public interface ProductMetricsHourlyRepository {
 
-    Optional<ProductMetricsHourly> findByProductIdAndBucketHour(Long productId, ZonedDateTime bucketHour);
+    Optional<ProductMetricsHourly> findByProductIdAndBucketHourAndSource(
+            Long productId, ZonedDateTime bucketHour, String source);
 
     ProductMetricsHourly save(ProductMetricsHourly hourly);
 }

@@ -28,7 +28,8 @@ public class ProductViewEventPublisher {
     @EventListener
     public void on(ProductViewed event) {
         CatalogEventPayload payload = new CatalogEventPayload(
-                event.eventId(), TYPE_VIEWED, event.productId(), null, event.occurredAt().toString());
+                event.eventId(), TYPE_VIEWED, event.productId(), null, event.occurredAt().toString(),
+                event.source().name());
         try {
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, event.productId().toString(), payload)
                 .whenComplete((result, ex) -> {

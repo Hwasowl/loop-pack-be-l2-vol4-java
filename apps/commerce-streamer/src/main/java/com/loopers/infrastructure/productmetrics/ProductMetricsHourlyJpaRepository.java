@@ -8,5 +8,6 @@ import java.util.Optional;
 
 public interface ProductMetricsHourlyJpaRepository extends JpaRepository<ProductMetricsHourly, Long> {
 
-    Optional<ProductMetricsHourly> findByProductIdAndBucketHour(Long productId, ZonedDateTime bucketHour);
+    Optional<ProductMetricsHourly> findByProductIdAndBucketHourAndSource(
+            Long productId, ZonedDateTime bucketHour, String source);
 }

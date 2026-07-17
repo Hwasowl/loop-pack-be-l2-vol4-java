@@ -27,13 +27,18 @@ import java.time.ZonedDateTime;
  * </ul>
  * 버킷 경계는 이벤트 발생 시각(Asia/Seoul 정시 절삭)이다. 지금 시각이 아닌 발생 시각을 쓰는 이유는
  * 지연·재처리된 이벤트가 엉뚱한 시간대에 기록되는 것을 막기 위함이다.
+ * <p>
+ * 버킷은 (상품, 시각, <b>유입 경로</b>)로 나뉜다. 경로를 행 분리 키로 둔 이유는, 조회 1건의 값어치가
+ * 경로마다 다르기 때문이다 — 특히 인기목록을 보고 누른 조회(RANKING)는 랭킹이 스스로 만들어낸 것이라,
+ * 그대로 점수에 넣으면 상위 노출이 조회를 부르고 조회가 다시 순위를 올리는 자기참조가 된다.
+ * 경로별로 갈라 두면 나중에 "랭킹 경유는 빼고 다시 계산"이 SUM 조건 하나로 가능해진다.
  */
 @Getter
 @Entity
 @Table(
         name = "product_metrics_hourly",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_product_metrics_hourly", columnNames = {"product_id", "bucket_hour"}),
+                name = "uk_product_metrics_hourly", columnNames = {"product_id", "bucket_hour", "source"}),
         indexes = @Index(name = "idx_product_metrics_hourly_bucket", columnList = "bucket_hour")
 )
 public class ProductMetricsHourly {
@@ -49,6 +54,14 @@ public class ProductMetricsHourly {
     @Column(name = "bucket_hour", nullable = false)
     private ZonedDateTime bucketHour;
 
+    /**
+     * 유입 경로. 조회에만 의미가 있고, 좋아요·주문은 경로를 싣지 않아 UNKNOWN으로 모인다.
+     * 발행 측 enum을 그대로 두지 않고 문자열로 받는 이유는, 이 표가 <b>사실을 기록하는 자리</b>라서다 —
+     * 모르는 값이 와도 버리지 않고 남긴 뒤, 해석은 읽는 쪽이 한다.
+     */
+    @Column(name = "source", nullable = false, length = 20)
+    private String source;
+
     @Column(name = "view_count", nullable = false)
     private long viewCount;
 
@@ -63,13 +76,14 @@ public class ProductMetricsHourly {
     protected ProductMetricsHourly() {
     }
 
-    private ProductMetricsHourly(Long productId, ZonedDateTime bucketHour) {
+    private ProductMetricsHourly(Long productId, ZonedDateTime bucketHour, String source) {
         this.productId = productId;
         this.bucketHour = bucketHour;
+        this.source = source;
     }
 
-    public static ProductMetricsHourly init(Long productId, ZonedDateTime bucketHour) {
-        return new ProductMetricsHourly(productId, bucketHour);
+    public static ProductMetricsHourly init(Long productId, ZonedDateTime bucketHour, String source) {
+        return new ProductMetricsHourly(productId, bucketHour, source);
     }
 
     public void addView(long delta) {

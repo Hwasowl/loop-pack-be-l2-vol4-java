@@ -51,7 +51,7 @@ public class CatalogEventsConsumer {
                                 event.productId(), event.likeCount(), event.likeDelta(), occurredAt);
                     }
                     case "PRODUCT_VIEWED" ->
-                            productMetricsService.applyView(event.productId(), occurredAt);
+                            productMetricsService.applyView(event.productId(), occurredAt, event.source());
                     case "PRODUCT_SOLD" -> {
                         long amount = (long) event.quantity() * (event.unitPrice() == null ? 0L : event.unitPrice());
                         productMetricsService.applySold(

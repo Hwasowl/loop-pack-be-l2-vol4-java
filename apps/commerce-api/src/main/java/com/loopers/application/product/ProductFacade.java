@@ -1,6 +1,7 @@
 package com.loopers.application.product;
 
 import com.loopers.domain.product.ProductViewed;
+import com.loopers.domain.product.ViewSource;
 import com.loopers.domain.ranking.RankingKeys;
 import com.loopers.domain.ranking.RankingRepository;
 import com.loopers.domain.useraction.UserActionEvent;
@@ -27,7 +28,7 @@ public class ProductFacade {
     private final ApplicationEventPublisher eventPublisher;
     private final RankingRepository rankingRepository;
 
-    public ProductInfo getProductDetail(Long productId) {
+    public ProductInfo getProductDetail(Long productId, ViewSource source) {
         ProductInfo info = cacheStore.getOrLoad(
             ProductCacheKeys.detail(productId), ProductInfo.class, ProductCacheKeys.DETAIL_TTL,
             () -> {
@@ -35,7 +36,8 @@ public class ProductFacade {
                 return ProductInfo.from(c.product(), c.brand(), c.stockQuantity() > 0, c.likeCount());
             });
         // 상세 조회가 성공한 뒤(존재하지 않으면 위에서 예외)에만 조회 이벤트를 발행한다.
-        eventPublisher.publishEvent(ProductViewed.of(productId));
+        // 유입 경로를 함께 실어, 랭킹이 스스로 만든 조회(source=RANKING)를 나중에 가려낼 수 있게 한다.
+        eventPublisher.publishEvent(ProductViewed.of(productId, source));
         // 유저 행동 로그(부가) — 조회 상세는 인증이 없어 userId는 익명(null)이다.
         eventPublisher.publishEvent(UserActionEvent.of(null, "PRODUCT_VIEW", productId));
         // 순위는 실시간이라 캐시 밖에서 당일 랭킹 키로 조회한다(0-based → 1-based, 랭킹 밖이면 null).

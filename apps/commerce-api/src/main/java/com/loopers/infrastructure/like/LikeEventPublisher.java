@@ -54,7 +54,7 @@ public class LikeEventPublisher {
         long likeCount = likeRepository.countByProductId(productId);
         CatalogEventPayload payload = new CatalogEventPayload(
                 eventId, TYPE_LIKE_COUNT_CHANGED, productId, userId, occurredAt.toString(),
-                null, likeCount, likeDelta, null);
+                null, likeCount, likeDelta, null, null);
         try {
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, productId.toString(), payload)
                 .whenComplete((result, ex) -> {

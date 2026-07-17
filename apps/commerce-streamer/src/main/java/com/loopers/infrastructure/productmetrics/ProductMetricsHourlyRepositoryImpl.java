@@ -15,8 +15,9 @@ public class ProductMetricsHourlyRepositoryImpl implements ProductMetricsHourlyR
     private final ProductMetricsHourlyJpaRepository jpaRepository;
 
     @Override
-    public Optional<ProductMetricsHourly> findByProductIdAndBucketHour(Long productId, ZonedDateTime bucketHour) {
-        return jpaRepository.findByProductIdAndBucketHour(productId, bucketHour);
+    public Optional<ProductMetricsHourly> findByProductIdAndBucketHourAndSource(
+            Long productId, ZonedDateTime bucketHour, String source) {
+        return jpaRepository.findByProductIdAndBucketHourAndSource(productId, bucketHour, source);
     }
 
     @Override
