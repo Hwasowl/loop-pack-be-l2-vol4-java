@@ -8,10 +8,16 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
 /**
- * 랭킹 ZSET 키/멤버 규약. commerce-api(읽기)와 반드시 동일해야 하는 <b>교차 앱 계약</b>이라
- * 두 앱에 같은 규약을 둔다(product_metrics 테이블/컬럼명을 양쪽이 공유하는 것과 같은 맥락).
- * 키는 이벤트 발생 시각(occurredAt)을 Asia/Seoul로 환산해 버킷팅한다 — 경계(자정/정시) 근처의
- * 지연·재처리 이벤트가 엉뚱한 버킷에 꽂히는 것을 막기 위함이다.
+ * 랭킹 ZSET 키/멤버 규약. commerce-streamer(쓰기)와 commerce-api(읽기)가 <b>반드시 동일하게</b> 써야 하는
+ * 교차 앱 계약이라 양쪽이 함께 의존하는 이 모듈이 소유한다. 두 앱에 같은 규약을 복사해 두면 한쪽만
+ * 바뀌었을 때 컴파일러가 잡아주지 못하고, 키가 어긋나 조용히 빈 랭킹이 나간다.
+ * <p>
+ * 이 모듈은 키의 <i>모양</i>만 안다 — Redis 접속·명령은 modules:redis가, 어떤 이벤트에 몇 점을 줄지는
+ * 각 앱의 정책이 각각 소유한다.
+ * <p>
+ * 쓰기 측은 이벤트 발생 시각(occurredAt)으로, 읽기 측은 조회 대상 날짜(date)로 키를 만든다. 쓰기에서
+ * 지금 시각이 아닌 발생 시각을 쓰는 이유는, 경계(자정/정시) 근처의 지연·재처리 이벤트가 엉뚱한 버킷에
+ * 꽂히는 것을 막기 위함이다.
  */
 public final class RankingKeys {
 
@@ -27,6 +33,13 @@ public final class RankingKeys {
     private RankingKeys() {
     }
 
+    /** 조회용 — hour == null 이면 일별 키(yyyyMMdd), 있으면 시간별 키(yyyyMMddHH). */
+    public static String of(LocalDate date, Integer hour) {
+        String base = dailyKey(date);
+        return hour == null ? base : base + String.format("%02d", hour);
+    }
+
+    /** 적재용 — 이벤트 발생 시각을 Asia/Seoul로 환산해 일별 버킷을 정한다. */
     public static String daily(ZonedDateTime occurredAt) {
         return dailyKey(occurredAt.withZoneSameInstant(ZONE).toLocalDate());
     }
@@ -36,12 +49,17 @@ public final class RankingKeys {
         return PREFIX + date.format(DAILY);
     }
 
+    /** 적재용 — 이벤트 발생 시각을 Asia/Seoul로 환산해 시간별 버킷을 정한다. */
     public static String hourly(ZonedDateTime occurredAt) {
         return PREFIX + occurredAt.withZoneSameInstant(ZONE).format(HOURLY);
     }
 
     public static String member(Long productId) {
         return MEMBER_PREFIX + productId;
+    }
+
+    public static Long productIdOf(String member) {
+        return Long.valueOf(member.substring(MEMBER_PREFIX.length()));
     }
 
     /** 일별 키 만료 시각 — 해당 날짜 자정 기준 +2일(최대 48시간). 자정 롤오버 후에도 전날 랭킹 조회 보장. */
