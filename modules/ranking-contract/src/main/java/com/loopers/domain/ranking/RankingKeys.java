@@ -33,10 +33,20 @@ public final class RankingKeys {
     private RankingKeys() {
     }
 
-    /** 조회용 — hour == null 이면 일별 키(yyyyMMdd), 있으면 시간별 키(yyyyMMddHH). */
+    /**
+     * 조회용 — hour == null 이면 일별 키(yyyyMMdd), 있으면 시간별 키(yyyyMMddHH).
+     * 범위를 벗어난 hour는 여기서 막는다 — 쓰기 측은 실제 시각에서 버킷을 뽑아 24 같은 값이 나올 수 없는데,
+     * 읽기 측은 요청이 준 값을 그대로 받는다. 걸러내지 않으면 존재할 수 없는 키를 조회해 빈 랭킹을 정상 응답으로 돌려준다.
+     */
     public static String of(LocalDate date, Integer hour) {
         String base = dailyKey(date);
-        return hour == null ? base : base + String.format("%02d", hour);
+        if (hour == null) {
+            return base;
+        }
+        if (hour < 0 || hour > 23) {
+            throw new IllegalArgumentException("hour는 0~23이어야 합니다: " + hour);
+        }
+        return base + String.format("%02d", hour);
     }
 
     /** 적재용 — 이벤트 발생 시각을 Asia/Seoul로 환산해 일별 버킷을 정한다. */

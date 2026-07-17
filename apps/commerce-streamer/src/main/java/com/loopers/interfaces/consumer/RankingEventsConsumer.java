@@ -54,6 +54,9 @@ public class RankingEventsConsumer {
                     }
                     case "PRODUCT_VIEWED" -> rankingService.applyView(occurredAt, event.productId());
                     case "PRODUCT_SOLD" -> {
+                        if (event.quantity() == null) {
+                            throw new IllegalArgumentException("quantity 없는 판매 이벤트: eventId=" + event.eventId());
+                        }
                         long amount = (long) event.quantity() * (event.unitPrice() == null ? 0L : event.unitPrice());
                         rankingService.applyOrder(occurredAt, event.productId(), amount);
                     }

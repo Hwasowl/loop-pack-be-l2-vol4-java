@@ -8,6 +8,7 @@ import com.loopers.domain.useraction.UserActionEvent;
 import com.loopers.support.cache.CacheStore;
 import com.loopers.domain.product.SortOption;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.ZoneId;
 
+@Slf4j
 @RequiredArgsConstructor
 @Component
 public class ProductFacade {
@@ -40,10 +42,24 @@ public class ProductFacade {
         eventPublisher.publishEvent(ProductViewed.of(productId, source));
         // 유저 행동 로그(부가) — 조회 상세는 인증이 없어 userId는 익명(null)이다.
         eventPublisher.publishEvent(UserActionEvent.of(null, "PRODUCT_VIEW", productId));
-        // 순위는 실시간이라 캐시 밖에서 당일 랭킹 키로 조회한다(0-based → 1-based, 랭킹 밖이면 null).
-        String todayKey = RankingKeys.of(LocalDate.now(SEOUL), null);
-        Long rank = rankingRepository.rank(todayKey, productId).map(r -> r + 1).orElse(null);
-        return info.withRank(rank);
+        return info.withRank(currentRankOrNull(productId));
+    }
+
+    /**
+     * 당일 랭킹에서의 순위. 순위는 실시간이라 캐시 밖에서 조회한다(0-based → 1-based, 랭킹 밖이면 null).
+     * <p>
+     * 순위는 상세 조회의 <b>부가 정보</b>다. Redis가 죽었다고 상품 상세가 통째로 실패하면,
+     * 랭킹이라는 곁가지가 본 기능을 인질로 잡는 셈이다. 조회 실패는 순위 없음(null)으로 흡수한다 —
+     * 응답 계약상 "랭킹 밖"과 같은 표현이라 클라이언트가 따로 알아야 할 것도 없다.
+     */
+    private Long currentRankOrNull(Long productId) {
+        try {
+            String todayKey = RankingKeys.of(LocalDate.now(SEOUL), null);
+            return rankingRepository.rank(todayKey, productId).map(r -> r + 1).orElse(null);
+        } catch (Exception e) {
+            log.warn("랭킹 순위 조회 실패 — 순위 없이 응답한다 (productId={})", productId, e);
+            return null;
+        }
     }
 
     public Page<ProductInfo> search(Long brandId, SortOption sort, Pageable pageable) {

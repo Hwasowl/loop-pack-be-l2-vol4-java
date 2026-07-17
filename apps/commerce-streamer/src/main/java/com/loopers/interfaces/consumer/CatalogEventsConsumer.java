@@ -48,11 +48,14 @@ public class CatalogEventsConsumer {
                                     "likeCount·likeDelta 없는 좋아요 이벤트: eventId=" + event.eventId());
                         }
                         productMetricsService.applyLikeSnapshot(
-                                event.productId(), event.likeCount(), event.likeDelta(), occurredAt);
+                                event.eventId(), event.productId(), event.likeCount(), event.likeDelta(), occurredAt);
                     }
                     case "PRODUCT_VIEWED" ->
                             productMetricsService.applyView(event.productId(), occurredAt, event.source());
                     case "PRODUCT_SOLD" -> {
+                        if (event.quantity() == null) {
+                            throw new IllegalArgumentException("quantity 없는 판매 이벤트: eventId=" + event.eventId());
+                        }
                         long amount = (long) event.quantity() * (event.unitPrice() == null ? 0L : event.unitPrice());
                         productMetricsService.applySold(
                                 event.eventId(), event.productId(), event.quantity(), amount, occurredAt);

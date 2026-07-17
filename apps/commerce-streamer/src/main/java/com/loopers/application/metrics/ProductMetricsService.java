@@ -38,19 +38,27 @@ public class ProductMetricsService {
      * 좋아요 총량 스냅샷을 소비해 product_metrics.like_count에 최신-우선으로 반영하고,
      * 그 시간대 버킷에 증감(likeDelta)을 누적한다.
      * <p>
-     * 절대값 덮어쓰기라 중복·유실엔 강하고(다음 스냅샷이 교정), 순서 역전만 occurredAt 비교로 막는다.
-     * 그래서 멱등 장부(event_handled)가 필요 없다 — 오래된 이벤트는 모델이 스스로 버린다.
+     * 현재 상태는 절대값 덮어쓰기라 중복·유실에 강하다(다음 스냅샷이 교정). 순서 역전만 occurredAt 비교로 막는다.
      * 단, 오래된 스냅샷이라 현재 상태에 반영되지 않았더라도 <b>그 시간에 좋아요가 눌린 사실 자체는</b>
      * 유효하므로 버킷에는 기록한다.
+     * <p>
+     * 버킷은 절대값이 아니라 <b>증감의 누적</b>이라 중복에 강하지 않다 — 같은 이벤트를 두 번 받으면 +1이 +2가 되고,
+     * 다음 스냅샷이 와도 교정되지 않는다. 원천이 한 번 틀어지면 그걸로 만든 재계산도 전부 틀어지므로,
+     * 판매와 같은 방식으로 eventId 장부를 둔다. 좋아요는 조회와 달리 양이 적어 장부 비용을 감당할 수 있다.
      */
     @Transactional
-    public void applyLikeSnapshot(Long productId, long likeCount, long likeDelta, ZonedDateTime occurredAt) {
+    public void applyLikeSnapshot(String eventId, Long productId, long likeCount, long likeDelta,
+                                  ZonedDateTime occurredAt) {
+        if (eventHandledRepository.existsByEventId(eventId)) {
+            return;
+        }
         ProductMetrics metrics = productMetricsRepository.findByProductId(productId)
                 .orElseGet(() -> ProductMetrics.init(productId));
         if (metrics.applyLikeSnapshot(likeCount, occurredAt)) {
             productMetricsRepository.save(metrics);
         }
         bucketOf(productId, occurredAt, SOURCE_UNKNOWN).addLikeDelta(likeDelta);
+        eventHandledRepository.save(new EventHandled(eventId));
     }
 
     /**

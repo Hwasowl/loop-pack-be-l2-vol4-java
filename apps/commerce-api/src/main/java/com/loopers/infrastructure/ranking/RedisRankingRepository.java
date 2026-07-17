@@ -24,6 +24,11 @@ public class RedisRankingRepository implements RankingRepository {
 
     @Override
     public List<Long> topProductIds(String key, long offset, long size) {
+        // size가 0 이하면 stop 인덱스가 음수가 되고, Redis는 음수를 "뒤에서 N번째"로 해석한다.
+        // 특히 offset=0·size=0이면 ZREVRANGE key 0 -1 — ZSET 전체를 끌어오는 명령이 된다.
+        if (size <= 0) {
+            return List.of();
+        }
         // reverseRange 는 점수 내림차순 정렬된 LinkedHashSet 을 돌려주므로 순위 순서가 보존된다.
         Set<String> members = redisTemplate.opsForZSet().reverseRange(key, offset, offset + size - 1);
         if (members == null || members.isEmpty()) {
