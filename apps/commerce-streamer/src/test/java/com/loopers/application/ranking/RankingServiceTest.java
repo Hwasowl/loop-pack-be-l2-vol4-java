@@ -81,7 +81,7 @@ class RankingServiceTest {
             assertThat(capturedDelta()).isCloseTo(-0.4, within(1e-9));
         }
 
-        @DisplayName("델타가 0이면(스냅샷 미반영) ZSET을 건드리지 않는다")
+        @DisplayName("델타가 0이면 올릴 점수가 없으므로 ZSET을 건드리지 않는다")
         @Test
         void skips_whenZeroDelta() {
             // when
@@ -106,7 +106,7 @@ class RankingServiceTest {
             assertThat(capturedDelta()).isCloseTo(30_000.0, within(1e-6));
         }
 
-        @DisplayName("금액이 0이면(멱등 중복) ZSET을 건드리지 않는다")
+        @DisplayName("금액이 0이면(단가 누락 등) ZSET을 건드리지 않는다")
         @Test
         void skips_whenZeroAmount() {
             // when
@@ -114,6 +114,40 @@ class RankingServiceTest {
 
             // then
             verify(rankingRepository, never()).incrementScore(eq(T), eq(PRODUCT_ID), anyDouble());
+        }
+    }
+
+    @DisplayName("이벤트 간 가중치를 비교하면")
+    @Nested
+    class WeightOrdering {
+
+        private double deltaOf(Runnable apply, Long productId) {
+            apply.run();
+            ArgumentCaptor<Double> captor = ArgumentCaptor.forClass(Double.class);
+            verify(rankingRepository).incrementScore(eq(T), eq(productId), captor.capture());
+            return captor.getValue();
+        }
+
+        @DisplayName("주문 1건(1만원)이 좋아요 3건보다 높은 점수를 얻는다")
+        @Test
+        void orderOutweighsLikes() {
+            // when - 서로 다른 상품에 각각 반영해 캡처를 분리한다
+            double orderScore = deltaOf(() -> rankingService.applyOrder(T, 1L, 10_000L), 1L);
+            double likeScore = deltaOf(() -> rankingService.applyLikeDelta(T, 2L, 3L), 2L);
+
+            // then - 0.6 * 10000 = 6000  >  0.2 * 3 = 0.6
+            assertThat(orderScore).isGreaterThan(likeScore);
+        }
+
+        @DisplayName("같은 건수라면 좋아요 1건이 조회 1건보다 높은 점수를 얻는다")
+        @Test
+        void likeOutweighsView() {
+            // when
+            double likeScore = deltaOf(() -> rankingService.applyLikeDelta(T, 1L, 1L), 1L);
+            double viewScore = deltaOf(() -> rankingService.applyView(T, 2L), 2L);
+
+            // then - 0.2 > 0.1
+            assertThat(likeScore).isGreaterThan(viewScore);
         }
     }
 }
