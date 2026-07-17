@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RankingKeysTest {
 
@@ -87,6 +88,24 @@ class RankingKeysTest {
         @Test
         void of_withSingleDigitHour_isZeroPadded() {
             assertThat(RankingKeys.of(LocalDate.of(2026, 1, 13), 5)).isEqualTo("ranking:all:2026011305");
+        }
+
+        @DisplayName("경계값 0시와 23시는 정상적인 시간별 키를 만든다")
+        @Test
+        void of_acceptsBoundaryHours() {
+            assertThat(RankingKeys.of(LocalDate.of(2026, 1, 13), 0)).isEqualTo("ranking:all:2026011300");
+            assertThat(RankingKeys.of(LocalDate.of(2026, 1, 13), 23)).isEqualTo("ranking:all:2026011323");
+        }
+
+        @DisplayName("hour가 0~23을 벗어나면 존재할 수 없는 키를 만들지 않고 예외를 던진다")
+        @Test
+        void of_rejectsOutOfRangeHour() {
+            // 쓰기 측은 실제 시각에서 버킷을 뽑아 이런 값이 나올 수 없지만, 읽기 측은 요청이 준 값을 받는다.
+            // 걸러내지 않으면 ranking:all:2026011324 같은 유령 키를 조회해 빈 랭킹을 정상 응답으로 돌려준다.
+            assertThatThrownBy(() -> RankingKeys.of(LocalDate.of(2026, 1, 13), -1))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> RankingKeys.of(LocalDate.of(2026, 1, 13), 24))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 

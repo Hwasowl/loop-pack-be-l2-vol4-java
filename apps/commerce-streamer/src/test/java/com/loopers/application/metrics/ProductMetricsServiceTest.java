@@ -125,7 +125,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
 
             // when - T2(더 최신) 스냅샷 7 도착
-            productMetricsService.applyLikeSnapshot(100L, 7L, 1L, T2);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 7L, 1L, T2);
 
             // then
             verify(productMetricsRepository).save(existing);
@@ -141,7 +141,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
 
             // when - 뒤늦게 도착한 T1(과거) 스냅샷 3
-            productMetricsService.applyLikeSnapshot(100L, 3L, -1L, T1);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 3L, -1L, T1);
 
             // then - 최신값(7)이 과거값(3)으로 되돌아가지 않는다
             verify(productMetricsRepository, never()).save(any());
@@ -157,7 +157,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
 
             // when - 뒤늦게 도착한 과거(T1) 이벤트
-            productMetricsService.applyLikeSnapshot(100L, 3L, -1L, T1);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 3L, -1L, T1);
 
             // then - 현재 상태는 안 바뀌지만, 그때 좋아요가 취소된 사실 자체는 원천이므로 남긴다
             assertThat(newBucket.getLikeDelta()).isEqualTo(-1L);
@@ -172,11 +172,39 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.of(existing));
 
             // when - 같은 T2 시각의 스냅샷(9)이 재도착
-            productMetricsService.applyLikeSnapshot(100L, 9L, 1L, T2);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 9L, 1L, T2);
 
             // then - eventAt이 '이후'가 아니라 '동일'이면 버린다(경계값)
             verify(productMetricsRepository, never()).save(any());
             assertThat(existing.getLikeCount()).isEqualTo(7L);
+        }
+
+        @DisplayName("이미 처리한 eventId이면 버킷 증감을 다시 더하지 않는다")
+        @Test
+        void skipsBucketDelta_whenAlreadyHandled() {
+            // given - 같은 좋아요 이벤트가 재전달됐다(Kafka at-least-once)
+            when(eventHandledRepository.existsByEventId("like-1")).thenReturn(true);
+
+            // when
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 7L, 1L, T);
+
+            // then - 버킷은 절대값이 아니라 증감 누적이라, 두 번 더하면 다음 스냅샷이 와도 교정되지 않는다
+            verify(productMetricsRepository, never()).save(any());
+            verify(eventHandledRepository, never()).save(any());
+            assertThat(newBucket.getLikeDelta()).isZero();
+        }
+
+        @DisplayName("처음 도착한 좋아요 이벤트이면 event_handled에 기록해 재소비를 막는다")
+        @Test
+        void recordsEventId_whenFirstArrival() {
+            // given
+            when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
+
+            // when
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 7L, 1L, T);
+
+            // then
+            verify(eventHandledRepository).save(any(EventHandled.class));
         }
 
         @DisplayName("좋아요 증감이 그 시간 버킷에 누적된다")
@@ -186,7 +214,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when
-            productMetricsService.applyLikeSnapshot(100L, 7L, 1L, T);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 7L, 1L, T);
 
             // then
             assertThat(newBucket.getLikeDelta()).isEqualTo(1L);
@@ -331,7 +359,7 @@ class ProductMetricsServiceTest {
             when(productMetricsRepository.findByProductId(100L)).thenReturn(Optional.empty());
 
             // when
-            productMetricsService.applyLikeSnapshot(100L, 7L, 1L, T);
+            productMetricsService.applyLikeSnapshot("like-1", 100L, 7L, 1L, T);
 
             // then
             verify(productMetricsHourlyRepository).findByProductIdAndBucketHourAndSource(100L, BUCKET, "UNKNOWN");

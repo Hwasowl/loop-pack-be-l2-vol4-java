@@ -190,6 +190,34 @@ class RankingApiE2ETest {
         );
     }
 
+    @DisplayName("size가 상한(100)을 넘으면 400 BAD_REQUEST를 반환한다")
+    @Test
+    void returns400_whenSizeExceedsLimit() {
+        // when - 상한이 없으면 요청 하나로 ZSET 전체와 상품 조회까지 끌고 온다
+        ResponseEntity<ApiResponse<RankingPage>> response =
+            getRankings("date=" + today.format(YMD) + "&size=101&page=1");
+
+        // then
+        assertAll(
+            () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST),
+            () -> assertThat(response.getBody().meta().result()).isEqualTo(ApiResponse.Metadata.Result.FAIL)
+        );
+    }
+
+    @DisplayName("hour가 0~23을 벗어나면 400 BAD_REQUEST를 반환한다")
+    @Test
+    void returns400_whenHourOutOfRange() {
+        // when - 24시라는 버킷은 존재할 수 없다
+        ResponseEntity<ApiResponse<RankingPage>> response =
+            getRankings("date=" + today.format(YMD) + "&hour=24&size=20&page=1");
+
+        // then - 걸러내지 않으면 유령 키를 조회해 빈 랭킹을 200으로 돌려준다
+        assertAll(
+            () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST),
+            () -> assertThat(response.getBody().meta().result()).isEqualTo(ApiResponse.Metadata.Result.FAIL)
+        );
+    }
+
     @DisplayName("일자가 바뀌어도 date 파라미터로 이전 날짜의 랭킹을 조회할 수 있다")
     @Test
     void returnsPastDateRanking_byDateParam() {

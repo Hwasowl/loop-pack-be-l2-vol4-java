@@ -136,8 +136,19 @@ class RankingEventsConsumerTest {
             // when
             consume(json("PRODUCT_SOLD", ",\"quantity\":3"));
 
-            // then
+            // then - 단가를 모르는 판매는 금액을 지어내지 않는다. RankingService가 0을 스킵한다.
             verify(rankingService).applyOrder(T, PRODUCT_ID, 0L);
+        }
+
+        @DisplayName("수량이 없으면 점수를 반영하지 않고 DLQ로 격리한다")
+        @Test
+        void quarantines_whenQuantityMissing() {
+            // when - 수량 없는 판매 이벤트
+            consume(json("PRODUCT_SOLD", ",\"unitPrice\":50000"));
+
+            // then - 0으로 흘려보내면 판매가 일어났다는 사실이 조용히 사라진다. 격리해 드러낸다.
+            verify(rankingService, never()).applyOrder(any(), anyLong(), anyLong());
+            verify(dlqPublisher).publish(eq(KafkaTopics.CATALOG_EVENTS), any(), any());
         }
     }
 
