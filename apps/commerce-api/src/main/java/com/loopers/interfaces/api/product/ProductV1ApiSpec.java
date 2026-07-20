@@ -3,6 +3,7 @@ package com.loopers.interfaces.api.product;
 import com.loopers.interfaces.api.ApiResponse;
 import com.loopers.interfaces.api.product.dto.ProductV1Response;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Positive;
 import org.springframework.data.domain.Page;
@@ -15,5 +16,8 @@ public interface ProductV1ApiSpec {
     ApiResponse<Page<ProductV1Response>> search(@Positive Long brandId, String sort, Pageable pageable);
 
     @Operation(summary = "상품 상세 조회", description = "상품 단건을 조회합니다.")
-    ApiResponse<ProductV1Response> getProduct(@Positive Long productId);
+    ApiResponse<ProductV1Response> getProduct(
+        @Positive Long productId,
+        @Parameter(description = "유입 경로 (RANKING/SEARCH/BROWSE/EXTERNAL). 랭킹 점수 산정에 쓰이며, 생략하면 UNKNOWN으로 집계됩니다.")
+        String source);
 }

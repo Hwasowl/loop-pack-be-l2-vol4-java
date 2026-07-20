@@ -19,6 +19,8 @@ import java.util.List;
  * catalog-events 소비 → product_metrics 집계.
  * 배치 리스너로 받아 개별 이벤트를 순차 처리하고, 배치 전체 처리 후 수동 커밋한다.
  * (파티션 key=productId 라 같은 상품 이벤트는 순서 보장된다)
+ * <p>
+ * 랭킹 ZSET 갱신은 관심사가 달라 RankingEventsConsumer가 별도 group.id로 같은 토픽을 읽는다.
  */
 @Slf4j
 @Component
@@ -38,18 +40,26 @@ public class CatalogEventsConsumer {
         for (ConsumerRecord<Object, Object> record : records) {
             try {
                 CatalogEvent event = objectMapper.readValue((byte[]) record.value(), CatalogEvent.class);
+                ZonedDateTime occurredAt = ZonedDateTime.parse(event.occurredAt());
                 switch (event.eventType()) {
                     case "PRODUCT_LIKE_COUNT_CHANGED" -> {
-                        if (event.likeCount() == null) {
-                            throw new IllegalArgumentException("likeCount 없는 좋아요 스냅샷 이벤트: eventId=" + event.eventId());
+                        if (event.likeCount() == null || event.likeDelta() == null) {
+                            throw new IllegalArgumentException(
+                                    "likeCount·likeDelta 없는 좋아요 이벤트: eventId=" + event.eventId());
                         }
                         productMetricsService.applyLikeSnapshot(
-                                event.productId(), event.likeCount(), ZonedDateTime.parse(event.occurredAt()));
+                                event.eventId(), event.productId(), event.likeCount(), event.likeDelta(), occurredAt);
                     }
                     case "PRODUCT_VIEWED" ->
-                            productMetricsService.applyView(event.productId());
-                    case "PRODUCT_SOLD" ->
-                            productMetricsService.applySold(event.eventId(), event.productId(), event.quantity());
+                            productMetricsService.applyView(event.productId(), occurredAt, event.source());
+                    case "PRODUCT_SOLD" -> {
+                        if (event.quantity() == null) {
+                            throw new IllegalArgumentException("quantity 없는 판매 이벤트: eventId=" + event.eventId());
+                        }
+                        long amount = (long) event.quantity() * (event.unitPrice() == null ? 0L : event.unitPrice());
+                        productMetricsService.applySold(
+                                event.eventId(), event.productId(), event.quantity(), amount, occurredAt);
+                    }
                     default -> log.warn("알 수 없는 catalog 이벤트 타입 (offset={}): {}", record.offset(), event.eventType());
                 }
             } catch (Exception e) {

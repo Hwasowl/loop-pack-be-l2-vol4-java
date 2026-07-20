@@ -27,9 +27,11 @@ public class ProductViewEventPublisher {
     @Async
     @EventListener
     public void on(ProductViewed event) {
-        CatalogEventPayload payload = new CatalogEventPayload(
-                event.eventId(), TYPE_VIEWED, event.productId(), null, event.occurredAt().toString());
         try {
+            // 봉투를 만드는 일도 실패할 수 있다(필드 누락 등). 발행과 같은 취급을 받도록 try 안에 둔다.
+            CatalogEventPayload payload = new CatalogEventPayload(
+                    event.eventId(), TYPE_VIEWED, event.productId(), null, event.occurredAt().toString(),
+                    event.source().name());
             kafkaTemplate.send(KafkaTopics.CATALOG_EVENTS, event.productId().toString(), payload)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
