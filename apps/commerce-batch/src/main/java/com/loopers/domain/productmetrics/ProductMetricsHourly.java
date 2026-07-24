@@ -11,6 +11,7 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 /**
  * 상품별 시간 단위 원천 집계(SOT)의 배치 측 매핑. 소유는 streamer지만, 모듈 경계상 batch가
@@ -60,9 +61,9 @@ public class ProductMetricsHourly {
 
     private ProductMetricsHourly(Long productId, ZonedDateTime bucketHour, String source,
                                 long viewCount, long likeDelta, long orderAmount) {
-        this.productId = productId;
-        this.bucketHour = bucketHour;
-        this.source = source;
+        this.productId = Objects.requireNonNull(productId, "productId는 필수다.");
+        this.bucketHour = Objects.requireNonNull(bucketHour, "bucketHour는 필수다.");
+        this.source = Objects.requireNonNull(source, "source는 필수다.");
         this.viewCount = viewCount;
         this.likeDelta = likeDelta;
         this.orderAmount = orderAmount;

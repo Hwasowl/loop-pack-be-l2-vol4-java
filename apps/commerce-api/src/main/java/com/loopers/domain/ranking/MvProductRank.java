@@ -28,8 +28,9 @@ public abstract class MvProductRank extends BaseEntity {
     @Column(name = "like_count", nullable = false)
     private long likeCount;
 
-    @Column(name = "sales_count", nullable = false)
-    private long salesCount;
+    /** 주문 금액(order_amount) 합. 원천(product_metrics_hourly)에 수량이 없어 금액을 판매 신호로 쓴다. */
+    @Column(name = "order_amount", nullable = false)
+    private long orderAmount;
 
     @Column(name = "view_count", nullable = false)
     private long viewCount;

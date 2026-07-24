@@ -38,6 +38,14 @@ class PeriodTest {
             assertThat(Period.WEEKLY.key(LocalDate.of(2026, 7, 20))).isNotEqualTo(key); // 다음 주 월요일
             assertThat(Period.WEEKLY.key(LocalDate.of(2026, 7, 12))).isNotEqualTo(key); // 지난 주 일요일
         }
+
+        @DisplayName("ISO 주 기준이라 연말·연초가 한 주로 묶이면 week-based-year로 같은 key를 준다")
+        @Test
+        void keyUsesIsoWeekBasedYearAtBoundary() {
+            // 2026-W01 = 월2025-12-29 ~ 일2026-01-04 (달력 연도가 아닌 ISO week-based-year)
+            assertThat(Period.WEEKLY.key(LocalDate.of(2025, 12, 29))).isEqualTo("2026-W01");
+            assertThat(Period.WEEKLY.key(LocalDate.of(2026, 1, 4))).isEqualTo("2026-W01");
+        }
     }
 
     @DisplayName("월간 집계 기간을 계산할 때")

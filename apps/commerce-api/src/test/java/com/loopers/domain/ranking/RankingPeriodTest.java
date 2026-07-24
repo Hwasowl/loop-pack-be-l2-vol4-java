@@ -31,12 +31,13 @@ class RankingPeriodTest {
             assertThat(RankingPeriod.from("Monthly")).isEqualTo(RankingPeriod.MONTHLY);
         }
 
-        @DisplayName("알 수 없는 값이면 BAD_REQUEST 예외를 던진다")
+        @DisplayName("알 수 없는 값이면 원인 예외를 보존한 BAD_REQUEST를 던진다")
         @Test
         void throwsBadRequest_whenUnknown() {
             assertThatThrownBy(() -> RankingPeriod.from("yearly"))
                 .isInstanceOf(CoreException.class)
-                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.BAD_REQUEST));
+                .satisfies(e -> assertThat(((CoreException) e).getErrorType()).isEqualTo(ErrorType.BAD_REQUEST))
+                .cause().isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -50,11 +51,18 @@ class RankingPeriodTest {
         @DisplayName("주간은 같은 ISO주의 어떤 날이든 같은 yyyy-Www key를 준다 (배치 Period와 동일 규칙)")
         @Test
         void weeklyKeyIsIsoWeekAndStable() {
-            String key = RankingPeriod.WEEKLY.mvPeriodKey(WED);
-            assertThat(key).matches("\\d{4}-W\\d{2}");
-            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 13))).isEqualTo(key); // 월
-            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 19))).isEqualTo(key); // 일
-            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 20))).isNotEqualTo(key); // 다음 주
+            // 정답값은 production 헬퍼로 계산하지 않고 직접 명시한다 — 배치↔API 계약을 독립적으로 못박기 위함이다.
+            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(WED)).isEqualTo("2026-W29");
+            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 13))).isEqualTo("2026-W29"); // 월
+            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 19))).isEqualTo("2026-W29"); // 일
+            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2026, 7, 20))).isEqualTo("2026-W30"); // 다음 주
+        }
+
+        @DisplayName("ISO week-based-year라 연초가 지난해 마지막 주로 묶이면 그 해의 key를 준다")
+        @Test
+        void weeklyKeyUsesIsoWeekBasedYearAtBoundary() {
+            // 2021-01-01(금)은 ISO로 2020-W53에 속한다(2021-W01은 2021-01-04 월요일부터).
+            assertThat(RankingPeriod.WEEKLY.mvPeriodKey(LocalDate.of(2021, 1, 1))).isEqualTo("2020-W53");
         }
 
         @DisplayName("월간은 yyyy-MM key를 준다")

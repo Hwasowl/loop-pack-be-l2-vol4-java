@@ -44,6 +44,8 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 @ActiveProfiles("test")
 @TestPropertySource(properties = {
     "spring.batch.job.name=" + RankingAggregationJobConfig.JOB_NAME,
+    // 잡은 JobLauncherTestUtils로만 구동한다 — 컨텍스트 기동 시 자동 실행되지 않도록 러너를 끈다.
+    "spring.batch.job.enabled=false",
     "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 class RankingAggregationJobE2ETest {
@@ -177,7 +179,7 @@ class RankingAggregationJobE2ETest {
     void aggregatesMonthly() throws Exception {
         // arrange - 같은 달(2026-07) 서로 다른 날
         seedHourly(1L, LocalDate.of(2026, 7, 2), 0, 1, 0);
-        seedHourly(1L, LocalDate.of(2026, 7, 28), 0, 2, 0);   // 같은 상품 월 합산 → sales 3
+        seedHourly(1L, LocalDate.of(2026, 7, 28), 0, 2, 0);   // 같은 상품 월 합산 → 주문금액 3
         seedHourly(2L, LocalDate.of(2026, 8, 1), 0, 99, 0);   // 다음 달 → 제외
 
         // act
@@ -188,7 +190,7 @@ class RankingAggregationJobE2ETest {
         var ranks = monthlyRepository.findAll();
         assertThat(ranks).hasSize(1);
         assertThat(ranks.get(0).getProductId()).isEqualTo(1L);
-        assertThat(ranks.get(0).getSalesCount()).isEqualTo(3L);
+        assertThat(ranks.get(0).getOrderAmount()).isEqualTo(3L);
         assertThat(ranks.get(0).getPeriodKey()).isEqualTo(Period.MONTHLY.key(BASE));
     }
 }
